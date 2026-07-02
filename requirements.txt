@@ -1,0 +1,9 @@
+# Core Data Processing & Analysis
+pandas==3.0.3
+numpy==2.5.0
+
+# Storage Engine (needed for saving/reading parquet format)
+pyarrow==24.0.0
+
+# Jupyter kernel (for running notebooks in this virtual environment)
+ipykernel
