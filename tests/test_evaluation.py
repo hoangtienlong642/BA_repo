@@ -59,3 +59,43 @@ def test_cost_curve_finds_zero_cost_threshold():
 
     one_row = next(r for r in curve if r["threshold"] == pytest.approx(1.0))
     assert one_row["fn_cost"] == pytest.approx(100.0)
+
+
+def test_cost_curve_default_thresholds():
+    y_true = [0, 1, 0, 1, 0, 1]
+    y_proba = [0.1, 0.8, 0.3, 0.6, 0.2, 0.9]
+    amounts = [50, 200, 10, 150, 20, 300]
+    fp_cost = 5
+
+    curve, best_threshold = cost_curve(y_true, y_proba, amounts, fp_cost)
+
+    assert len(curve) == 101
+
+    curve_thresholds = [row["threshold"] for row in curve]
+    assert curve_thresholds == sorted(curve_thresholds)
+    assert curve_thresholds[0] == pytest.approx(0.0)
+    assert curve_thresholds[-1] == pytest.approx(1.0)
+
+    assert isinstance(best_threshold, float)
+    assert 0.0 <= best_threshold <= 1.0
+
+
+def test_cost_curve_chunked_matches_unchunked_reference():
+    rng = np.random.default_rng(42)
+    n_samples = 500
+    y_true = rng.integers(0, 2, size=n_samples)
+    y_proba = rng.random(n_samples)
+    amounts = rng.uniform(1, 1000, size=n_samples)
+    fp_cost = 7.5
+    thresholds = np.linspace(0.0, 1.0, 137)  # not a multiple of chunk_size
+
+    curve_chunked, best_chunked = cost_curve(
+        y_true, y_proba, amounts, fp_cost, thresholds=thresholds, chunk_size=10
+    )
+    curve_unchunked, best_unchunked = cost_curve(
+        y_true, y_proba, amounts, fp_cost, thresholds=thresholds, chunk_size=len(thresholds)
+    )
+
+    assert best_chunked == pytest.approx(best_unchunked)
+    for row_chunked, row_unchunked in zip(curve_chunked, curve_unchunked):
+        assert row_chunked == pytest.approx(row_unchunked)

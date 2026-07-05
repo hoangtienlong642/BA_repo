@@ -34,7 +34,7 @@ def evaluate(model, X_test, y_test, threshold: float = 0.5) -> dict:
     }
 
 
-def cost_curve(y_true, y_proba, amounts, fp_cost: float, thresholds=None):
+def cost_curve(y_true, y_proba, amounts, fp_cost: float, thresholds=None, chunk_size: int = 20):
     y_true = np.asarray(y_true)
     y_proba = np.asarray(y_proba)
     amounts = np.asarray(amounts)
@@ -46,14 +46,25 @@ def cost_curve(y_true, y_proba, amounts, fp_cost: float, thresholds=None):
     is_fraud = y_true == 1
     is_legit = y_true == 0
 
-    # (n_samples, n_thresholds) boolean prediction matrix
-    y_pred = y_proba[:, None] >= thresholds[None, :]
+    n_thresholds = thresholds.shape[0]
+    fn_cost_totals = np.empty(n_thresholds, dtype=float)
+    fp_cost_totals = np.empty(n_thresholds, dtype=float)
 
-    fn_mask = is_fraud[:, None] & ~y_pred
-    fp_mask = is_legit[:, None] & y_pred
+    # Process thresholds in chunks so peak memory is bounded by
+    # n_samples * chunk_size instead of n_samples * n_thresholds.
+    for start in range(0, n_thresholds, chunk_size):
+        end = min(start + chunk_size, n_thresholds)
+        chunk_thresholds = thresholds[start:end]
 
-    fn_cost_totals = (amounts[:, None] * fn_mask).sum(axis=0)
-    fp_cost_totals = fp_mask.sum(axis=0) * fp_cost
+        # (n_samples, chunk_len) boolean prediction matrix
+        y_pred_chunk = y_proba[:, None] >= chunk_thresholds[None, :]
+
+        fn_mask_chunk = is_fraud[:, None] & ~y_pred_chunk
+        fp_mask_chunk = is_legit[:, None] & y_pred_chunk
+
+        fn_cost_totals[start:end] = (amounts[:, None] * fn_mask_chunk).sum(axis=0)
+        fp_cost_totals[start:end] = fp_mask_chunk.sum(axis=0) * fp_cost
+
     total_costs = fn_cost_totals + fp_cost_totals
 
     curve = [
