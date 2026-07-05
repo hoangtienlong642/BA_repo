@@ -9,7 +9,7 @@ def init_tracking(tracking_dir) -> None:
     mlflow.set_tracking_uri(f"file:{tracking_dir}")
 
 
-def log_run(model_name: str, params: dict, metrics: dict, best_threshold: float, model) -> None:
+def log_run(model_name: str, params: dict, metrics: dict, best_threshold: float, model, artifact_paths=None) -> None:
     flat_metrics = {
         k: v for k, v in metrics.items() if isinstance(v, (int, float))
     }
@@ -22,3 +22,6 @@ def log_run(model_name: str, params: dict, metrics: dict, best_threshold: float,
         mlflow.log_metrics(flat_metrics)
         mlflow.log_metric("best_threshold", best_threshold)
         mlflow.sklearn.log_model(model, artifact_path="model")
+        if artifact_paths:
+            for path in artifact_paths:
+                mlflow.log_artifact(path)

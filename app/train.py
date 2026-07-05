@@ -1,6 +1,10 @@
 import argparse
+import tempfile
+
+from sklearn.model_selection import TimeSeriesSplit
 
 from app import config, data, evaluation, imbalance, mlflow_utils, tuning
+from app.learning_curve import plot_learning_curve
 from app.models import lightgbm_model, rf, xgboost_model
 
 MODEL_REGISTRY = {
@@ -14,6 +18,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Train and evaluate a fraud detection model.")
     parser.add_argument("--model", choices=MODEL_REGISTRY.keys(), required=True)
     parser.add_argument("--n-iter", type=int, default=25)
+    parser.add_argument("--plot-learning-curve", action="store_true")
     args = parser.parse_args()
 
     print(f"Loading features from {config.FEATURES_PATH}...")
@@ -51,8 +56,16 @@ def main() -> None:
     )
     metrics_best_threshold = evaluation.evaluate(best_estimator, X_test_selected, y_test, threshold=best_threshold)
 
+    artifact_paths = []
+    if args.plot_learning_curve:
+        print("Generating learning curve...")
+        fig = plot_learning_curve(best_estimator, X_train_selected, y_train, cv=TimeSeriesSplit(n_splits=5))
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
+            fig.savefig(f.name)
+            artifact_paths.append(f.name)
+
     mlflow_utils.init_tracking(config.MLRUNS_DIR)
-    mlflow_utils.log_run(args.model, best_params, metrics_best_threshold, best_threshold, best_estimator)
+    mlflow_utils.log_run(args.model, best_params, metrics_best_threshold, best_threshold, best_estimator, artifact_paths=artifact_paths)
 
     print(f"\n=== {args.model} ===")
     print(f"Metrics @ threshold 0.5: {metrics_default}")
