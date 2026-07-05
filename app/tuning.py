@@ -18,7 +18,7 @@ def time_series_search(
         scoring="average_precision",
         cv=cv,
         random_state=random_state,
-        n_jobs=-1,
+        n_jobs=6,
     )
     search.fit(X_train, y_train)
     return search.best_estimator_, search.best_params_, search.best_score_

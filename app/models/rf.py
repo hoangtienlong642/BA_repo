@@ -5,7 +5,7 @@ def build_estimator(class_weight=None, random_state: int = 42) -> RandomForestCl
     return RandomForestClassifier(
         class_weight=class_weight,
         random_state=random_state,
-        n_jobs=-1,
+        n_jobs=6,
     )
 
 
