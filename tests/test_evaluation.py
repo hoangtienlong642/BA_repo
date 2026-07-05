@@ -26,6 +26,19 @@ def test_evaluate_confusion_matrix_and_metrics():
     assert result["auc_pr"] == pytest.approx(1.0)
 
 
+def test_evaluate_single_class_y_test_returns_none_auc():
+    y_test = [0, 0, 0, 0]
+    model = _StubModel([0.1, 0.4, 0.6, 0.9])
+
+    result = evaluate(model, X_test=None, y_test=y_test, threshold=0.5)
+
+    assert result["auc_pr"] is None
+    assert result["roc_auc"] is None
+    assert result["confusion_matrix"] == {"tn": 2, "fp": 2, "fn": 0, "tp": 0}
+    assert result["precision"] == pytest.approx(0.0)
+    assert result["recall"] == pytest.approx(0.0)
+
+
 def test_cost_curve_finds_zero_cost_threshold():
     y_true = [1, 0]
     y_proba = [0.9, 0.1]
