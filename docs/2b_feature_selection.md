@@ -43,7 +43,8 @@ Cumulative importance of the 34 surviving features (real numbers from the probe 
 | Rank | Feature | Cumulative importance |
 |---|---|---|
 | 9  | `is_transfer_or_cashout` | 91.92% |
-| 19 | `type_TRANSFER` | 98.03% |
+| 14 | `type_TRANSFER` | 98.03% |
+| 19 | `dest_balance_after_expected` | 99.40% |
 | **20** | `dest_balance_change_abs_error` | **99.53%** |
 | 21 | `isDestBalanceZero` | 99.63% |
 | 30 | `day_of_week` | 100.00% (of the surviving mass) |
