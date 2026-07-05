@@ -21,6 +21,9 @@ def main() -> None:
     X_train, X_test, y_train, y_test = data.time_based_split(df, test_frac=config.TEST_FRAC)
     print(f"Train: {len(X_train):,} rows, Test: {len(X_test):,} rows.")
 
+    X_train_selected = data.select_features(X_train, config.SELECTED_FEATURES)
+    X_test_selected = data.select_features(X_test, config.SELECTED_FEATURES)
+
     model_module = MODEL_REGISTRY[args.model]
     if args.model == "xgboost":
         weight = imbalance.get_scale_pos_weight(y_train)
@@ -33,20 +36,20 @@ def main() -> None:
     best_estimator, best_params, best_cv_score = tuning.time_series_search(
         estimator,
         model_module.param_distributions(),
-        X_train,
+        X_train_selected,
         y_train,
         n_iter=args.n_iter,
         random_state=config.RANDOM_SEED,
     )
     print(f"Best CV AUC-PR: {best_cv_score:.4f}, params: {best_params}")
 
-    metrics_default = evaluation.evaluate(best_estimator, X_test, y_test, threshold=0.5)
-    y_proba = best_estimator.predict_proba(X_test)[:, 1]
+    metrics_default = evaluation.evaluate(best_estimator, X_test_selected, y_test, threshold=0.5)
+    y_proba = best_estimator.predict_proba(X_test_selected)[:, 1]
     amounts_test = X_test["amount"].to_numpy()
     _curve, best_threshold = evaluation.cost_curve(
         y_test.to_numpy(), y_proba, amounts_test, config.FP_COST
     )
-    metrics_best_threshold = evaluation.evaluate(best_estimator, X_test, y_test, threshold=best_threshold)
+    metrics_best_threshold = evaluation.evaluate(best_estimator, X_test_selected, y_test, threshold=best_threshold)
 
     mlflow_utils.init_tracking(config.MLRUNS_DIR)
     mlflow_utils.log_run(args.model, best_params, metrics_best_threshold, best_threshold, best_estimator)

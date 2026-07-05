@@ -33,3 +33,7 @@ def time_based_split(df: pd.DataFrame, test_frac: float = 0.2):
     y_test = test_df[TARGET_COLUMN]
 
     return X_train, X_test, y_train, y_test
+
+
+def select_features(X: pd.DataFrame, features: list) -> pd.DataFrame:
+    return X[features]

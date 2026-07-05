@@ -2,6 +2,7 @@ import pandas as pd
 import pytest
 
 from app.data import load_features, time_based_split
+from app.data import select_features
 
 
 def test_load_features_missing_file_raises(tmp_path):
@@ -43,3 +44,17 @@ def test_time_based_split_drops_id_columns():
 
     assert "amount" in X_train.columns
     assert y_train.name == "isFraud"
+
+
+def test_select_features_returns_requested_columns_in_order():
+    df = pd.DataFrame({"a": [1, 2], "b": [3, 4], "c": [5, 6], "d": [7, 8]})
+    result = select_features(df, features=["c", "a"])
+    assert list(result.columns) == ["c", "a"]
+    assert result["c"].tolist() == [5, 6]
+    assert result["a"].tolist() == [1, 2]
+
+
+def test_select_features_missing_column_raises():
+    df = pd.DataFrame({"a": [1, 2]})
+    with pytest.raises(KeyError):
+        select_features(df, features=["a", "does_not_exist"])
