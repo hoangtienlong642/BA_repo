@@ -140,14 +140,29 @@ SELECTED_FEATURES = [
 
 ## Elbow rationale
 
-After correlation pruning, 34 features remain. Their cumulative RF importance
-reaches 91.9% by rank 9 (the dominant balance/transfer-type signals), climbs to
-99.53% by rank 20, and the remaining 14 features (ranks 21–34) together add less
-than 0.5 percentage points, with the bottom 4 (`is_first_dest_tx`, `type_DEBIT`,
-`orig_cum_count`, `orig_cum_sum`) at ~1e-5–1e-7 — indistinguishable from noise.
-The cutoff was drawn at rank 20 (`dest_balance_change_abs_error`, importance
-0.0011): it sits inside the brief's target range of 15–25 features, captures
-essentially all of the model's real signal, and excludes a long tail of features
-whose individual contribution is too small to justify the added complexity/leakage
-surface (e.g. `dest_cum_*`, `orig_cum_*`, low-cardinality calendar features like
-`day_of_week`).
+After correlation pruning, 34 features remain. Looking at the ratio between
+consecutive importances (rather than just the raw values), the single sharpest
+drop in the whole ranking is between rank 9 and rank 10 — `is_transfer_or_cashout`
+(0.0431) to `amount_to_dest_cum_avg_ratio` (0.0176), a 2.4x fall — and by rank 9
+the top features already account for 91.9% of cumulative importance. That is the
+*primary* elbow: on importance alone, a 9-feature model would already capture
+almost all of the signal this probe RF found.
+
+The brief's target of roughly 15–25 features overrides that primary elbow, so the
+cutoff was extended past it. Ranks 10–19 form a second, much flatter plateau
+(0.0176 down to 0.0048, each step a mild ~1.2–1.9x decline, no sharp break), and
+that plateau ends at rank 19→20 with a 1.8x drop (0.0020 → 0.0011) followed by a
+long, nearly flat tail: ranks 21–34 individually contribute ≤0.00085 each and sum
+to under 0.5 cumulative percentage points, with the bottom four
+(`is_first_dest_tx`, `type_DEBIT`, `orig_cum_count`, `orig_cum_sum`) at ~1e-5–1e-7
+— indistinguishable from floating-point noise. There is no second sharp cliff
+between rank 20 and rank 30; the decline past 20 is just a long negligible tail.
+
+The cutoff was therefore drawn at rank 20 (`dest_balance_change_abs_error`,
+importance 0.0011): it is the end of the second plateau, sits inside the brief's
+15–25 target range, captures 99.53% of cumulative importance, and excludes a long
+tail of features (`dest_cum_*`, `orig_cum_*`, low-cardinality calendar features
+like `day_of_week`) whose individual contribution is too small to justify the
+added complexity/leakage surface. In short: the data's own elbow is at 9; 20 is
+the honest stopping point once that primary elbow is extended to satisfy the
+brief's range requirement.
