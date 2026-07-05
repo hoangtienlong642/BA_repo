@@ -1,4 +1,5 @@
 from app.models import rf
+from app.models import xgboost_model
 
 
 def test_rf_build_estimator_applies_class_weight():
@@ -12,3 +13,16 @@ def test_rf_param_distributions_is_nonempty_dict():
     assert isinstance(params, dict)
     assert "n_estimators" in params
     assert "max_depth" in params
+
+
+def test_xgboost_build_estimator_applies_scale_pos_weight():
+    estimator = xgboost_model.build_estimator(scale_pos_weight=9.0, random_state=42)
+    assert estimator.get_params()["scale_pos_weight"] == 9.0
+    assert estimator.get_params()["random_state"] == 42
+
+
+def test_xgboost_param_distributions_is_nonempty_dict():
+    params = xgboost_model.param_distributions()
+    assert isinstance(params, dict)
+    assert "max_depth" in params
+    assert "learning_rate" in params
