@@ -1,8 +1,11 @@
+import os
+
 import mlflow
 import mlflow.sklearn
 
 
 def init_tracking(tracking_dir) -> None:
+    os.environ.setdefault("MLFLOW_ALLOW_FILE_STORE", "true")
     mlflow.set_tracking_uri(f"file:{tracking_dir}")
 
 
