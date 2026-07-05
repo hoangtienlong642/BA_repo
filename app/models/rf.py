@@ -11,7 +11,7 @@ def build_estimator(class_weight=None, random_state: int = 42) -> RandomForestCl
 
 def param_distributions() -> dict:
     return {
-        "n_estimators": [100, 200, 300, 500],
+        "n_estimators": [20, 40, 60, 80],
         "max_depth": [4, 6, 8, 10, None],
         "min_samples_leaf": [1, 2, 5, 10],
         "max_features": ["sqrt", "log2", 0.5],
