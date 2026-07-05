@@ -225,3 +225,6 @@ __marimo__/
 
 # Superpowers scratch
 .superpowers/
+
+mlruns/
+app/results/
