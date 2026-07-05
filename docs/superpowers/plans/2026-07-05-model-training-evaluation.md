@@ -721,7 +721,7 @@ from app.tuning import time_series_search
 def test_time_series_search_returns_fitted_best_estimator():
     rng = np.random.RandomState(0)
     X_train = pd.DataFrame(rng.rand(60, 3), columns=["a", "b", "c"])
-    y_train = pd.Series([0] * 54 + [1] * 6)  # imbalanced, deterministic order
+    y_train = pd.Series(([0] * 9 + [1]) * 6)  # imbalanced but spread across the series so every TimeSeriesSplit fold contains both classes
 
     estimator = LogisticRegression()
     param_distributions = {"C": [0.1, 1.0, 10.0]}
