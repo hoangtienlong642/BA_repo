@@ -72,9 +72,8 @@ def main() -> None:
 
     metrics_default = evaluation.evaluate(best_estimator, X_test_selected, y_test, threshold=0.5)
     y_proba = best_estimator.predict_proba(X_test_selected)[:, 1]
-    amounts_test = X_test["amount"].to_numpy()
     _curve, best_threshold = evaluation.cost_curve(
-        y_test.to_numpy(), y_proba, amounts_test, config.FP_COST
+        y_test.to_numpy(), y_proba, config.FN_COST, config.FP_COST
     )
     metrics_best_threshold = evaluation.evaluate(best_estimator, X_test_selected, y_test, threshold=best_threshold)
 

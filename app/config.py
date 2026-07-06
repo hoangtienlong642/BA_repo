@@ -8,9 +8,9 @@ MLRUNS_DIR = BASE_DIR / "mlruns"
 TEST_FRAC = 0.2
 RANDOM_SEED = 42
 
-# Cost assumption: missed fraud costs the full transaction amount lost.
-# False alarm costs a fixed friction cost (review + customer contact).
-FP_COST = 10.0
+# Cost assumption: flat per-incident costs (business-defined trade-off).
+FN_COST = 500.0  # missed fraud
+FP_COST = 5.0  # false alarm
 
 SELECTED_FEATURES = [
     'is_amount_equal_oldbalanceOrig',
