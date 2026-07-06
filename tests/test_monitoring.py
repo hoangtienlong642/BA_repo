@@ -2,7 +2,13 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from app.monitoring import compute_psi, compute_reference_stats, drift_report, rolling_metrics
+from app.monitoring import (
+    check_retrain_trigger,
+    compute_psi,
+    compute_reference_stats,
+    drift_report,
+    rolling_metrics,
+)
 
 
 def test_compute_reference_stats_returns_edges_and_pcts_per_feature():
@@ -93,3 +99,43 @@ def test_rolling_metrics_computes_precision_recall_and_cost():
     assert w["fn_count"] == 1
     assert w["fp_count"] == 1
     assert w["total_cost"] == pytest.approx(505.0)
+
+
+def test_check_retrain_trigger_fires_on_drift():
+    drift = {"feature_psis": {"a": 0.5}, "max_psi": 0.5, "drifted_features": ["a"]}
+    rolling = [{"recall": 0.9, "total_cost": 10.0}]
+
+    result = check_retrain_trigger(drift, rolling, train_recall=0.9, cost_budget=1000.0)
+
+    assert result["triggered"] is True
+    assert any("PSI" in r for r in result["reasons"])
+
+
+def test_check_retrain_trigger_fires_on_recall_drop():
+    drift = {"feature_psis": {}, "max_psi": 0.0, "drifted_features": []}
+    rolling = [{"recall": 0.5, "total_cost": 10.0}]
+
+    result = check_retrain_trigger(drift, rolling, train_recall=0.9, cost_budget=1000.0)
+
+    assert result["triggered"] is True
+    assert any("recall" in r.lower() for r in result["reasons"])
+
+
+def test_check_retrain_trigger_fires_on_cost_budget():
+    drift = {"feature_psis": {}, "max_psi": 0.0, "drifted_features": []}
+    rolling = [{"recall": 0.9, "total_cost": 5000.0}]
+
+    result = check_retrain_trigger(drift, rolling, train_recall=0.9, cost_budget=1000.0)
+
+    assert result["triggered"] is True
+    assert any("cost" in r.lower() for r in result["reasons"])
+
+
+def test_check_retrain_trigger_does_not_fire_when_all_clear():
+    drift = {"feature_psis": {"a": 0.05}, "max_psi": 0.05, "drifted_features": []}
+    rolling = [{"recall": 0.9, "total_cost": 10.0}]
+
+    result = check_retrain_trigger(drift, rolling, train_recall=0.9, cost_budget=1000.0)
+
+    assert result["triggered"] is False
+    assert result["reasons"] == []

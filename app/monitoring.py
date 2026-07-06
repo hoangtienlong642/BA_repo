@@ -80,3 +80,32 @@ def rolling_metrics(y_true, y_pred, fn_cost: float, fp_cost: float, window: int 
         })
 
     return results
+
+
+def check_retrain_trigger(
+    drift_report: dict,
+    rolling_metrics: list,
+    train_recall: float,
+    cost_budget: float,
+    psi_threshold: float = 0.25,
+    recall_drop_threshold: float = 0.10,
+) -> dict:
+    reasons = []
+
+    drifted = [f for f, psi in drift_report["feature_psis"].items() if psi > psi_threshold]
+    if drifted:
+        reasons.append(f"PSI drift on features: {', '.join(drifted)}")
+
+    if rolling_metrics:
+        latest = rolling_metrics[-1]
+        if latest["recall"] < train_recall - recall_drop_threshold:
+            reasons.append(
+                f"Rolling recall {latest['recall']:.3f} below train recall "
+                f"{train_recall:.3f} minus drop threshold {recall_drop_threshold:.3f}"
+            )
+        if latest["total_cost"] > cost_budget:
+            reasons.append(
+                f"Rolling window cost {latest['total_cost']:.2f} exceeds budget {cost_budget:.2f}"
+            )
+
+    return {"triggered": bool(reasons), "reasons": reasons}
