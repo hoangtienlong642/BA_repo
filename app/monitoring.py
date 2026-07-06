@@ -37,3 +37,19 @@ def compute_psi(bin_edges, bin_pcts_train, incoming_values) -> float:
 
     psi = np.sum((pcts_incoming - pcts_train) * np.log(pcts_incoming / pcts_train))
     return float(psi)
+
+
+def drift_report(reference_stats: dict, incoming_df: pd.DataFrame, psi_threshold: float = 0.25) -> dict:
+    feature_psis = {}
+    for feature, stats in reference_stats.items():
+        incoming_values = incoming_df[feature].to_numpy(dtype=float)
+        feature_psis[feature] = compute_psi(stats["bin_edges"], stats["bin_pcts"], incoming_values)
+
+    max_psi = max(feature_psis.values()) if feature_psis else 0.0
+    drifted_features = [f for f, psi in feature_psis.items() if psi > psi_threshold]
+
+    return {
+        "feature_psis": feature_psis,
+        "max_psi": max_psi,
+        "drifted_features": drifted_features,
+    }

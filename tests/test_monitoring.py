@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from app.monitoring import compute_psi, compute_reference_stats
+from app.monitoring import compute_psi, compute_reference_stats, drift_report
 
 
 def test_compute_reference_stats_returns_edges_and_pcts_per_feature():
@@ -47,3 +47,22 @@ def test_compute_psi_handles_zero_count_bins_without_error():
     psi = compute_psi(stats["bin_edges"], stats["bin_pcts"], incoming_all_zero)
 
     assert np.isfinite(psi)
+
+
+def test_drift_report_flags_drifted_features():
+    train_values_a = np.arange(100, dtype=float)
+    train_values_b = np.arange(100, dtype=float)
+    reference_stats = compute_reference_stats(
+        pd.DataFrame({"a": train_values_a, "b": train_values_b}), n_bins=10
+    )
+
+    incoming_df = pd.DataFrame({
+        "a": np.arange(100, 200, dtype=float),  # shifted -> drift
+        "b": np.arange(100, dtype=float),  # unchanged -> no drift
+    })
+
+    report = drift_report(reference_stats, incoming_df)
+
+    assert report["drifted_features"] == ["a"]
+    assert report["max_psi"] == pytest.approx(report["feature_psis"]["a"])
+    assert report["feature_psis"]["b"] == pytest.approx(0.0, abs=1e-6)
