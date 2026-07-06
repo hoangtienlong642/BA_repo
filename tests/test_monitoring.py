@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from app.monitoring import compute_psi, compute_reference_stats, drift_report
+from app.monitoring import compute_psi, compute_reference_stats, drift_report, rolling_metrics
 
 
 def test_compute_reference_stats_returns_edges_and_pcts_per_feature():
@@ -66,3 +66,30 @@ def test_drift_report_flags_drifted_features():
     assert report["drifted_features"] == ["a"]
     assert report["max_psi"] == pytest.approx(report["feature_psis"]["a"])
     assert report["feature_psis"]["b"] == pytest.approx(0.0, abs=1e-6)
+
+
+def test_rolling_metrics_splits_into_correct_windows():
+    y_true = [0] * 5 + [1] * 5
+    y_pred = [0] * 5 + [1] * 5  # all correct
+
+    windows = rolling_metrics(y_true, y_pred, fn_cost=500.0, fp_cost=5.0, window=4)
+
+    assert [w["window_start"] for w in windows] == [0, 4, 8]
+    assert [w["window_end"] for w in windows] == [4, 8, 10]
+    for w in windows:
+        assert w["precision"] == pytest.approx(1.0) or w["precision"] == pytest.approx(0.0)
+
+
+def test_rolling_metrics_computes_precision_recall_and_cost():
+    y_true = [0, 0, 1, 1]
+    y_pred = [0, 1, 1, 0]  # 1 FP, 1 FN, 1 TP, 1 TN
+
+    windows = rolling_metrics(y_true, y_pred, fn_cost=500.0, fp_cost=5.0, window=4)
+
+    assert len(windows) == 1
+    w = windows[0]
+    assert w["precision"] == pytest.approx(0.5)
+    assert w["recall"] == pytest.approx(0.5)
+    assert w["fn_count"] == 1
+    assert w["fp_count"] == 1
+    assert w["total_cost"] == pytest.approx(505.0)

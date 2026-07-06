@@ -1,5 +1,8 @@
 import numpy as np
 import pandas as pd
+from sklearn.metrics import precision_score, recall_score
+
+from app.evaluation import cost_at_threshold
 
 
 def compute_reference_stats(X_train_selected: pd.DataFrame, n_bins: int = 10) -> dict:
@@ -53,3 +56,27 @@ def drift_report(reference_stats: dict, incoming_df: pd.DataFrame, psi_threshold
         "max_psi": max_psi,
         "drifted_features": drifted_features,
     }
+
+
+def rolling_metrics(y_true, y_pred, fn_cost: float, fp_cost: float, window: int = 10_000) -> list:
+    y_true = np.asarray(y_true)
+    y_pred = np.asarray(y_pred)
+    n = len(y_true)
+
+    results = []
+    for start in range(0, n, window):
+        end = min(start + window, n)
+        window_true = y_true[start:end]
+        window_pred = y_pred[start:end]
+
+        cost = cost_at_threshold(window_true, window_pred, fn_cost, fp_cost)
+
+        results.append({
+            "window_start": start,
+            "window_end": end,
+            "precision": float(precision_score(window_true, window_pred, zero_division=0)),
+            "recall": float(recall_score(window_true, window_pred, zero_division=0)),
+            **cost,
+        })
+
+    return results
