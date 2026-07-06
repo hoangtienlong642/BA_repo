@@ -12,6 +12,11 @@ RANDOM_SEED = 42
 FN_COST = 500.0  # missed fraud
 FP_COST = 5.0  # false alarm
 
+REPORTS_DIR = BASE_DIR / "reports"
+REFERENCE_STATS_PATH = REPORTS_DIR / "reference_stats.json"
+MONITOR_WINDOW_SIZE = 10_000
+COST_BUDGET = 5_000.0  # placeholder; tune from a representative training-set rolling-window cost
+
 SELECTED_FEATURES = [
     'is_amount_equal_oldbalanceOrig',
     'orig_balance_change_abs_error',
