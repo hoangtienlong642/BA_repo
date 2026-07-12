@@ -1,0 +1,141 @@
+import numpy as np
+import pandas as pd
+import pytest
+
+from app.monitoring import (
+    check_retrain_trigger,
+    compute_psi,
+    compute_reference_stats,
+    drift_report,
+    rolling_metrics,
+)
+
+
+def test_compute_reference_stats_returns_edges_and_pcts_per_feature():
+    df = pd.DataFrame({
+        "a": np.arange(100, dtype=float),
+        "b": np.arange(100, 200, dtype=float),
+    })
+
+    stats = compute_reference_stats(df, n_bins=10)
+
+    assert set(stats.keys()) == {"a", "b"}
+    for feature_stats in stats.values():
+        assert len(feature_stats["bin_edges"]) == 11  # n_bins + 1
+        assert len(feature_stats["bin_pcts"]) == 10
+        assert sum(feature_stats["bin_pcts"]) == pytest.approx(1.0)
+
+
+def test_compute_psi_zero_when_distributions_match():
+    train_values = np.arange(100, dtype=float)
+    stats = compute_reference_stats(pd.DataFrame({"a": train_values}), n_bins=10)["a"]
+
+    psi = compute_psi(stats["bin_edges"], stats["bin_pcts"], train_values)
+
+    assert psi == pytest.approx(0.0, abs=1e-6)
+
+
+def test_compute_psi_positive_when_distribution_shifts():
+    train_values = np.arange(100, dtype=float)
+    stats = compute_reference_stats(pd.DataFrame({"a": train_values}), n_bins=10)["a"]
+    shifted_values = np.arange(100, 200, dtype=float)  # all in the last bin's open range
+
+    psi = compute_psi(stats["bin_edges"], stats["bin_pcts"], shifted_values)
+
+    assert psi > 0.25
+
+
+def test_compute_psi_handles_zero_count_bins_without_error():
+    train_values = np.concatenate([np.zeros(50), np.arange(50, dtype=float) + 50])
+    stats = compute_reference_stats(pd.DataFrame({"a": train_values}), n_bins=10)["a"]
+    incoming_all_zero = np.zeros(50)
+
+    psi = compute_psi(stats["bin_edges"], stats["bin_pcts"], incoming_all_zero)
+
+    assert np.isfinite(psi)
+
+
+def test_drift_report_flags_drifted_features():
+    train_values_a = np.arange(100, dtype=float)
+    train_values_b = np.arange(100, dtype=float)
+    reference_stats = compute_reference_stats(
+        pd.DataFrame({"a": train_values_a, "b": train_values_b}), n_bins=10
+    )
+
+    incoming_df = pd.DataFrame({
+        "a": np.arange(100, 200, dtype=float),  # shifted -> drift
+        "b": np.arange(100, dtype=float),  # unchanged -> no drift
+    })
+
+    report = drift_report(reference_stats, incoming_df)
+
+    assert report["drifted_features"] == ["a"]
+    assert report["max_psi"] == pytest.approx(report["feature_psis"]["a"])
+    assert report["feature_psis"]["b"] == pytest.approx(0.0, abs=1e-6)
+
+
+def test_rolling_metrics_splits_into_correct_windows():
+    y_true = [0] * 5 + [1] * 5
+    y_pred = [0] * 5 + [1] * 5  # all correct
+
+    windows = rolling_metrics(y_true, y_pred, fn_cost=500.0, fp_cost=5.0, window=4)
+
+    assert [w["window_start"] for w in windows] == [0, 4, 8]
+    assert [w["window_end"] for w in windows] == [4, 8, 10]
+    for w in windows:
+        assert w["precision"] == pytest.approx(1.0) or w["precision"] == pytest.approx(0.0)
+
+
+def test_rolling_metrics_computes_precision_recall_and_cost():
+    y_true = [0, 0, 1, 1]
+    y_pred = [0, 1, 1, 0]  # 1 FP, 1 FN, 1 TP, 1 TN
+
+    windows = rolling_metrics(y_true, y_pred, fn_cost=500.0, fp_cost=5.0, window=4)
+
+    assert len(windows) == 1
+    w = windows[0]
+    assert w["precision"] == pytest.approx(0.5)
+    assert w["recall"] == pytest.approx(0.5)
+    assert w["fn_count"] == 1
+    assert w["fp_count"] == 1
+    assert w["total_cost"] == pytest.approx(505.0)
+
+
+def test_check_retrain_trigger_fires_on_drift():
+    drift = {"feature_psis": {"a": 0.5}, "max_psi": 0.5, "drifted_features": ["a"]}
+    rolling = [{"recall": 0.9, "total_cost": 10.0}]
+
+    result = check_retrain_trigger(drift, rolling, train_recall=0.9, cost_budget=1000.0)
+
+    assert result["triggered"] is True
+    assert any("PSI" in r for r in result["reasons"])
+
+
+def test_check_retrain_trigger_fires_on_recall_drop():
+    drift = {"feature_psis": {}, "max_psi": 0.0, "drifted_features": []}
+    rolling = [{"recall": 0.5, "total_cost": 10.0}]
+
+    result = check_retrain_trigger(drift, rolling, train_recall=0.9, cost_budget=1000.0)
+
+    assert result["triggered"] is True
+    assert any("recall" in r.lower() for r in result["reasons"])
+
+
+def test_check_retrain_trigger_fires_on_cost_budget():
+    drift = {"feature_psis": {}, "max_psi": 0.0, "drifted_features": []}
+    rolling = [{"recall": 0.9, "total_cost": 5000.0}]
+
+    result = check_retrain_trigger(drift, rolling, train_recall=0.9, cost_budget=1000.0)
+
+    assert result["triggered"] is True
+    assert any("cost" in r.lower() for r in result["reasons"])
+
+
+def test_check_retrain_trigger_does_not_fire_when_all_clear():
+    drift = {"feature_psis": {"a": 0.05}, "max_psi": 0.05, "drifted_features": []}
+    rolling = [{"recall": 0.9, "total_cost": 10.0}]
+
+    result = check_retrain_trigger(drift, rolling, train_recall=0.9, cost_budget=1000.0)
+
+    assert result["triggered"] is False
+    assert result["reasons"] == []

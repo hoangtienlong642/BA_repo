@@ -9,6 +9,24 @@ from sklearn.metrics import (
 )
 
 
+def cost_at_threshold(y_true, y_pred, fn_cost: float, fp_cost: float) -> dict:
+    y_true = np.asarray(y_true)
+    y_pred = np.asarray(y_pred)
+
+    fn_count = int(np.sum((y_true == 1) & (y_pred == 0)))
+    fp_count = int(np.sum((y_true == 0) & (y_pred == 1)))
+    fn_cost_total = fn_count * fn_cost
+    fp_cost_total = fp_count * fp_cost
+
+    return {
+        "fn_count": fn_count,
+        "fp_count": fp_count,
+        "fn_cost_total": float(fn_cost_total),
+        "fp_cost_total": float(fp_cost_total),
+        "total_cost": float(fn_cost_total + fp_cost_total),
+    }
+
+
 def evaluate(model, X_test, y_test, threshold: float = 0.5) -> dict:
     y_proba = model.predict_proba(X_test)[:, 1]
     y_pred = (y_proba >= threshold).astype(int)
@@ -34,10 +52,9 @@ def evaluate(model, X_test, y_test, threshold: float = 0.5) -> dict:
     }
 
 
-def cost_curve(y_true, y_proba, amounts, fp_cost: float, thresholds=None, chunk_size: int = 20):
+def cost_curve(y_true, y_proba, fn_cost: float, fp_cost: float, thresholds=None, chunk_size: int = 20):
     y_true = np.asarray(y_true)
     y_proba = np.asarray(y_proba)
-    amounts = np.asarray(amounts)
 
     if thresholds is None:
         thresholds = np.linspace(0.0, 1.0, 101)
@@ -62,7 +79,7 @@ def cost_curve(y_true, y_proba, amounts, fp_cost: float, thresholds=None, chunk_
         fn_mask_chunk = is_fraud[:, None] & ~y_pred_chunk
         fp_mask_chunk = is_legit[:, None] & y_pred_chunk
 
-        fn_cost_totals[start:end] = (amounts[:, None] * fn_mask_chunk).sum(axis=0)
+        fn_cost_totals[start:end] = fn_mask_chunk.sum(axis=0) * fn_cost
         fp_cost_totals[start:end] = fp_mask_chunk.sum(axis=0) * fp_cost
 
     total_costs = fn_cost_totals + fp_cost_totals

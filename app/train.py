@@ -5,7 +5,7 @@ import tempfile
 import joblib
 from sklearn.model_selection import TimeSeriesSplit
 
-from app import config, data, evaluation, imbalance, mlflow_utils, tuning
+from app import config, data, evaluation, imbalance, mlflow_utils, monitoring, tuning
 from app.learning_curve import plot_learning_curve
 from app.models import lightgbm_model, rf, xgboost_model
 
@@ -72,11 +72,17 @@ def main() -> None:
 
     metrics_default = evaluation.evaluate(best_estimator, X_test_selected, y_test, threshold=0.5)
     y_proba = best_estimator.predict_proba(X_test_selected)[:, 1]
-    amounts_test = X_test["amount"].to_numpy()
     _curve, best_threshold = evaluation.cost_curve(
-        y_test.to_numpy(), y_proba, amounts_test, config.FP_COST
+        y_test.to_numpy(), y_proba, config.FN_COST, config.FP_COST
     )
     metrics_best_threshold = evaluation.evaluate(best_estimator, X_test_selected, y_test, threshold=best_threshold)
+
+    print("Computing reference stats for drift monitoring...")
+    reference_stats = monitoring.compute_reference_stats(X_train_selected)
+    config.REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+    with open(config.REFERENCE_STATS_PATH, "w") as f:
+        json.dump(reference_stats, f)
+    print(f"Reference stats saved to {config.REFERENCE_STATS_PATH}")
 
     artifact_paths = []
     if args.plot_learning_curve:

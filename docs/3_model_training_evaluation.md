@@ -32,7 +32,8 @@ parquet -> load_features -> time_based_split -> class weights (train only)
   - `time_series_search(estimator, param_dist, X_train, y_train, n_iter)` — `RandomizedSearchCV` + `TimeSeriesSplit`, scored on `average_precision` (AUC-PR). Returns best estimator.
 - `evaluation.py`
   - `evaluate(model, X_test, y_test)` — confusion matrix, precision/recall/F1, AUC-PR, ROC-AUC (secondary).
-  - `cost_curve(y_true, y_proba, amounts, fp_cost)` — sweep thresholds, total cost = `sum(amount for FN) + fp_cost * count(FP)`. Returns curve + threshold minimizing total cost.
+  - `cost_curve(y_true, y_proba, fn_cost, fp_cost)` — sweep thresholds, total cost = `fn_cost * count(FN) + fp_cost * count(FP)`. Returns curve + threshold minimizing total cost.
+  - `cost_at_threshold(y_true, y_pred, fn_cost, fp_cost)` — same cost math at a single fixed threshold (no sweep); reusable by the monitoring module.
 - `train.py` — CLI entrypoint: `uv run python -m app.train --model rf|xgboost|lightgbm --n-iter 25`. Orchestrates load -> split -> tune -> evaluate -> log to MLflow (params, metrics, confusion matrix plot, cost curve plot, model artifact) -> prints summary.
 - `mlflow_utils.py` — sets local tracking URI (`./mlruns`, gitignored), `log_run(...)` helper.
 
@@ -42,7 +43,7 @@ Test set touched only once, at final evaluation. `RandomizedSearchCV`'s internal
 
 ## Cost-based metric
 
-`cost(FN) = transaction amount` (money lost), `cost(FP) = fixed constant` (customer friction / review cost, set in `config.py`). Threshold chosen by minimizing total cost on the cost curve; reported alongside default 0.5 threshold for comparison.
+`cost(FN) = $500/incident` (missed fraud), `cost(FP) = $5/incident` (false alarm / customer friction) — both flat per-incident constants set in `config.py` (`FN_COST`, `FP_COST`). Threshold chosen by minimizing total cost on the cost curve; reported alongside default 0.5 threshold for comparison.
 
 ## Error handling
 
