@@ -9,6 +9,8 @@ def time_series_search(
     n_iter: int = 25,
     n_splits: int = 5,
     random_state: int = 42,
+    n_jobs: int = 1,
+    verbose: int = 0,
 ):
     cv = TimeSeriesSplit(n_splits=n_splits)
     search = RandomizedSearchCV(
@@ -18,7 +20,8 @@ def time_series_search(
         scoring="average_precision",
         cv=cv,
         random_state=random_state,
-        n_jobs=6,
+        n_jobs=n_jobs,
+        verbose=verbose,
     )
     search.fit(X_train, y_train)
     return search.best_estimator_, search.best_params_, search.best_score_

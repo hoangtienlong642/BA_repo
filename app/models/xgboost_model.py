@@ -1,11 +1,17 @@
 from xgboost import XGBClassifier
 
 
-def build_estimator(scale_pos_weight: float = 1.0, random_state: int = 42) -> XGBClassifier:
+def build_estimator(
+    scale_pos_weight: float = 1.0,
+    random_state: int = 42,
+    device: str = "cpu",
+) -> XGBClassifier:
     return XGBClassifier(
         scale_pos_weight=scale_pos_weight,
         random_state=random_state,
-        eval_metric="aucpr",
+        eval_metric=["aucpr", "logloss"],
+        tree_method="hist",
+        device=device,
         n_jobs=-1,
     )
 

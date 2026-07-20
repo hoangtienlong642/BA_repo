@@ -95,3 +95,7 @@ jupyter lab
 
 - **Tập dữ liệu đầu ra:** `Synthetic_Financial_datasets_features.parquet` (~800 MB). Đây là định dạng lưu trữ cột tối ưu, chứa tất cả các đặc trưng gốc và đặc trưng mới được kỹ nghệ hóa.
 - **Tài liệu đặc trưng:** Bạn có thể tham khảo file [metadata_features.csv](file:///Users/hltlong/Project/master/BA_project/metadata_features.csv) để xem danh sách chi tiết cùng định nghĩa, ý nghĩa nghiệp vụ và tầm quan trọng đối với mô hình của từng đặc trưng trong tổng số 48 đặc trưng.
+
+## Model training and experiment tracking
+
+The command-line training pipeline supports Random Forest, XGBoost, and LightGBM with local MLflow tracking or optional Weights & Biases tracking. See [the W&B training guide](docs/6_wandb_training.md) for setup, online/offline modes, and commands for all models.

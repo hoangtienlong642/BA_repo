@@ -1,10 +1,17 @@
 from lightgbm import LGBMClassifier
 
 
-def build_estimator(class_weight=None, random_state: int = 42) -> LGBMClassifier:
+def build_estimator(
+    class_weight=None,
+    random_state: int = 42,
+    device: str = "cpu",
+) -> LGBMClassifier:
     return LGBMClassifier(
         class_weight=class_weight,
         random_state=random_state,
+        device_type="gpu" if device == "cuda" else "cpu",
+        max_bin=63 if device == "cuda" else 255,
+        metric=["average_precision", "binary_logloss"],
         n_jobs=-1,
         verbosity=-1,
     )

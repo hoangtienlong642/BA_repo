@@ -3,6 +3,7 @@ from sklearn.metrics import (
     average_precision_score,
     confusion_matrix,
     f1_score,
+    log_loss,
     precision_score,
     recall_score,
     roc_auc_score,
@@ -29,6 +30,7 @@ def evaluate(model, X_test, y_test, threshold: float = 0.5) -> dict:
         "precision": float(precision_score(y_test, y_pred, zero_division=0)),
         "recall": float(recall_score(y_test, y_pred, zero_division=0)),
         "f1": float(f1_score(y_test, y_pred, zero_division=0)),
+        "log_loss": float(log_loss(y_test, y_proba, labels=[0, 1])),
         "auc_pr": auc_pr,
         "roc_auc": roc_auc,
     }
