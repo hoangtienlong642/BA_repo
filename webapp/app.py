@@ -45,9 +45,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # API Base URL - Read from environment variable (for Docker) or default to localhost
-DEFAULT_API_URL = os.getenv("API_URL", "http://127.0.0.1:8000")
-API_URL = st.sidebar.text_input("FastAPI Service URL", value=DEFAULT_API_URL, key="sidebar_api_url_input_v8")
-
+API_URL = os.getenv("API_URL", "http://127.0.0.1:8000")
 CANDIDATE_URLS = [API_URL, "http://api:8000", "http://127.0.0.1:8000", "http://localhost:8000"]
 
 
