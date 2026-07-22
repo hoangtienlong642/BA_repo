@@ -1,0 +1,14 @@
+artifact_uri: file:D:\Other\Fraud_Detection\BA_repo\mlruns/922032558611570959/9cbf1ef4ff9748c88a5afb34064d3c3e/artifacts
+end_time: 1783587805249
+entry_point_name: ''
+experiment_id: '922032558611570959'
+lifecycle_stage: active
+run_id: 9cbf1ef4ff9748c88a5afb34064d3c3e
+run_name: lightgbm
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1783587785256
+status: 3
+tags: []
+user_id: Admin

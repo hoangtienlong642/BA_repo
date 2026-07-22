@@ -1,0 +1,14 @@
+artifact_uri: file:D:\Other\Fraud_Detection\BA_repo\mlruns/361027662189752231/4ce3fd40b1fa40aaa322cbc94ec23b52/artifacts
+end_time: 1783585465566
+entry_point_name: ''
+experiment_id: '361027662189752231'
+lifecycle_stage: active
+run_id: 4ce3fd40b1fa40aaa322cbc94ec23b52
+run_name: xgboost
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1783585447507
+status: 3
+tags: []
+user_id: Admin

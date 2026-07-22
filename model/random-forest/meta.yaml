@@ -1,0 +1,9 @@
+artifact_location: file:D:\Other\Fraud_Detection\BA_repo\mlruns/316879789091598603
+creation_time: 1783673331493
+effective_trace_archival_retention: null
+experiment_id: '316879789091598603'
+last_update_time: 1783673331493
+lifecycle_stage: active
+name: rf_iter10
+trace_location: null
+workspace: default

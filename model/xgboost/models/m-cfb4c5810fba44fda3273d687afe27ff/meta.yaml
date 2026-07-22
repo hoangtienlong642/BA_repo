@@ -1,0 +1,10 @@
+artifact_location: file:D:\Other\Fraud_Detection\BA_repo\mlruns/361027662189752231/models/m-cfb4c5810fba44fda3273d687afe27ff/artifacts
+creation_timestamp: 1783585447688
+experiment_id: '361027662189752231'
+last_updated_timestamp: 1783585465520
+model_id: m-cfb4c5810fba44fda3273d687afe27ff
+model_type: null
+name: model
+source_run_id: 4ce3fd40b1fa40aaa322cbc94ec23b52
+status: 2
+status_message: null

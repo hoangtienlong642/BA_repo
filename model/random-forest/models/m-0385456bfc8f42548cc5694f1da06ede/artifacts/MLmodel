@@ -1,0 +1,23 @@
+artifact_path: file:D:\Other\Fraud_Detection\BA_repo\mlruns/316879789091598603/models/m-0385456bfc8f42548cc5694f1da06ede/artifacts
+flavors:
+  python_function:
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.sklearn
+    model_path: model.skops
+    predict_fn: predict
+    python_version: 3.13.6
+  sklearn:
+    code: null
+    pickled_model: model.skops
+    serialization_format: skops
+    sklearn_version: 1.9.0
+    skops_trusted_types: null
+mlflow_version: 3.14.0
+model_id: m-0385456bfc8f42548cc5694f1da06ede
+model_size_bytes: 41210276
+model_uuid: m-0385456bfc8f42548cc5694f1da06ede
+prompts: null
+run_id: a5c5878041cd4ba39d4e8c48e24c05b2
+utc_time_created: '2026-07-10 08:48:52.775597'

@@ -1,0 +1,26 @@
+artifact_path: file:D:\Other\Fraud_Detection\BA_repo\mlruns/922032558611570959/models/m-48402d6a95224970bfa5e8aa35919267/artifacts
+flavors:
+  python_function:
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.sklearn
+    model_path: model.skops
+    predict_fn: predict
+    python_version: 3.13.6
+  sklearn:
+    code: null
+    pickled_model: model.skops
+    serialization_format: skops
+    sklearn_version: 1.9.0
+    skops_trusted_types:
+    - collections.OrderedDict
+    - lightgbm.basic.Booster
+    - lightgbm.sklearn.LGBMClassifier
+mlflow_version: 3.14.0
+model_id: m-48402d6a95224970bfa5e8aa35919267
+model_size_bytes: 731544
+model_uuid: m-48402d6a95224970bfa5e8aa35919267
+prompts: null
+run_id: 9cbf1ef4ff9748c88a5afb34064d3c3e
+utc_time_created: '2026-07-09 09:03:05.766888'
