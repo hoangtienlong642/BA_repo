@@ -228,7 +228,5 @@ __marimo__/
 
 mlruns/
 app/results/
-model/
-*.joblib
 data/fraud.db
 
