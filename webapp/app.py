@@ -46,7 +46,7 @@ st.markdown("""
 
 # API Base URL - Read from environment variable (for Docker) or default to localhost
 DEFAULT_API_URL = os.getenv("API_URL", "http://127.0.0.1:8000")
-API_URL = st.sidebar.text_input("FastAPI Service URL", value=DEFAULT_API_URL, key="sidebar_api_url_input_v7")
+API_URL = st.sidebar.text_input("FastAPI Service URL", value=DEFAULT_API_URL, key="sidebar_api_url_input_v8")
 
 CANDIDATE_URLS = [API_URL, "http://api:8000", "http://127.0.0.1:8000", "http://localhost:8000"]
 
@@ -84,7 +84,7 @@ page = st.sidebar.radio(
         "🧬 3. Feature List",
         "⚡ 4. Real-time Streaming"
     ],
-    key="main_tab_navigation_v7"
+    key="main_tab_navigation_v8"
 )
 
 
@@ -221,7 +221,9 @@ elif page == "📁 2. Data Source & EDA":
 
     st.markdown("---")
 
-    st.markdown("### 👁️ Expanded Raw Dataset Preview (First 15 Rows)")
+    st.markdown("### 📥 Dataset Download & Script Management")
+    d_col1, d_col2 = st.columns(2)
+
     raw_sample = pd.DataFrame([
         {"step": 1, "type": "PAYMENT", "amount": 9839.64, "nameOrig": "C1231006815", "oldbalanceOrg": 170136.0, "newbalanceOrig": 160296.36, "nameDest": "M1979787155", "oldbalanceDest": 0.0, "newbalanceDest": 0.0, "isFraud": 0},
         {"step": 1, "type": "PAYMENT", "amount": 1864.28, "nameOrig": "C1666544295", "oldbalanceOrg": 21249.0, "newbalanceOrig": 19384.72, "nameDest": "M2044282225", "oldbalanceDest": 0.0, "newbalanceDest": 0.0, "isFraud": 0},
@@ -239,6 +241,35 @@ elif page == "📁 2. Data Source & EDA":
         {"step": 1, "type": "PAYMENT", "amount": 11578.17, "nameOrig": "C1716932897", "oldbalanceOrg": 6121.0, "newbalanceOrig": 0.0, "nameDest": "M1594084769", "oldbalanceDest": 0.0, "newbalanceDest": 0.0, "isFraud": 0},
         {"step": 1, "type": "TRANSFER", "amount": 20128.00, "nameOrig": "C137533655", "oldbalanceOrg": 20128.0, "newbalanceOrig": 0.0, "nameDest": "C1848415041", "oldbalanceDest": 0.0, "newbalanceDest": 0.0, "isFraud": 1},
     ])
+
+    with d_col1:
+        st.markdown("#### Download Sample Raw CSV")
+        csv_bytes = raw_sample.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="📥 Download Sample Raw Dataset (CSV)",
+            data=csv_bytes,
+            file_name="Synthetic_Financial_datasets_sample.csv",
+            mime="text/csv",
+            key="btn_download_sample_csv_v2"
+        )
+
+    with d_col2:
+        st.markdown("#### Execute Full Dataset Downloader Script (`get_data.py`)")
+        if st.button("🚀 Run Dataset Downloader Script", key="btn_run_download_script_v2"):
+            with st.spinner("Downloading full Kaggle dataset (~178MB)... Please wait."):
+                try:
+                    import get_data
+                    success = get_data.download_and_extract()
+                    if success:
+                        st.success("🎉 Full Kaggle Dataset downloaded and extracted successfully to server root!")
+                    else:
+                        st.error("Failed to download dataset. Please check internet connection.")
+                except Exception as ex:
+                    st.error(f"Error executing download script: {ex}")
+
+    st.markdown("---")
+
+    st.markdown("### 👁️ Expanded Raw Dataset Preview (First 15 Rows)")
     st.dataframe(raw_sample, width="stretch", height=450)
 
     st.markdown("---")
@@ -314,7 +345,7 @@ elif page == "⚡ 4. Real-time Streaming":
 
     # CONTINUOUS LIVE STREAMING TOGGLE
     st.markdown("### 🔄 Real-time Continuous Auto-Stream Simulation")
-    auto_stream = st.toggle("▶️ Enable Continuous Auto-Stream (Pushes 1 to 3 random transactions every 1 to 5 seconds)", key="toggle_auto_stream_v7")
+    auto_stream = st.toggle("▶️ Enable Continuous Auto-Stream (Pushes 1 to 3 random transactions every 1 to 5 seconds)", key="toggle_auto_stream_v8")
 
     st.markdown("---")
     st.markdown("### 🎲 Manual Random Data Push Controls")
@@ -324,13 +355,13 @@ elif page == "⚡ 4. Real-time Streaming":
     push_batch = False
 
     with btn_col1:
-        if st.button("🎲 Push 1 Random Transaction", key="btn_random_single_v7"):
+        if st.button("🎲 Push 1 Random Transaction", key="btn_random_single_v8"):
             push_single = True
     with btn_col2:
-        if st.button("🔥 Push 10 Random Transactions", key="btn_random_batch_v7"):
+        if st.button("🔥 Push 10 Random Transactions", key="btn_random_batch_v8"):
             push_batch = True
     with btn_col3:
-        if st.button("🗑️ Clear Stream History", key="btn_clear_stream_v7"):
+        if st.button("🗑️ Clear Stream History", key="btn_clear_stream_v8"):
             st.session_state.stream_history = []
             st.rerun()
 
