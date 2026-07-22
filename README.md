@@ -1,97 +1,84 @@
-# Dự án Kỹ thuật Đặc trưng Phát hiện Gian lận Tài chính (Fraud Detection Feature Engineering)
+# Dự án Phát hiện Gian lận Tài chính & Hệ thống Scoring Thời gian thực (Fraud Detection System)
 
-Dự án này thực hiện quy trình tiền xử lý dữ liệu, kiểm tra chất lượng và xây dựng hệ thống đặc trưng (feature engineering) từ tập dữ liệu giao dịch tài chính mô phỏng (Synthetic Financial Datasets). Mục tiêu là tạo ra tập dữ liệu chất lượng cao để huấn luyện các mô hình học máy phát hiện giao dịch gian lận.
+Dự án thực hiện quy trình Kỹ thuật Đặc trưng (Feature Engineering), Huấn luyện & So sánh Mô hình Học máy (Random Forest, LightGBM, XGBoost, Logistic Regression), Đánh giá Ngưỡng Chi phí Kinh doanh (Cost Trade-off), cùng Hệ thống **Scoring API (FastAPI)** và **Giao diện Giám sát Real-time Ticker (Streamlit)**.
 
 ---
 
-## 📂 Cấu trúc thư mục dự án
+## 📂 Cấu trúc dự án
 
 ```text
-├── 1_clean_data.ipynb             # Notebook làm sạch dữ liệu & phân tích ngoại lệ
-├── 2_feature_engineer.ipynb       # Notebook xây dựng đặc trưng (Feature Engineering)
-├── metadata_features.csv          # Tài liệu mô tả chi tiết ý nghĩa của 48 đặc trưng
-├── requirements.txt               # Danh sách các thư viện cần thiết
-├── Synthetic_Financial_datasets_log.csv       # Tập dữ liệu giao dịch gốc (CSV)
-└── Synthetic_Financial_datasets_features.parquet # Tập dữ liệu sau khi biến đổi đặc trưng (Parquet)
+├── app/
+│   ├── api.py                     # FastAPI Scoring Server (Real-time predict, queue, monitoring)
+│   ├── features.py                # Feature Extractor tự động 20 đặc trưng từ dữ liệu thô
+│   ├── db.py                      # SQLite database lưu trữ queue và lịch sử giao dịch
+│   ├── train.py                   # Script huấn luyện & lưu mô hình (Random Forest, LightGBM, XGBoost, LR)
+│   ├── evaluation.py              # Đánh giá AUC-PR, Precision/Recall, F1 & Cost-minimizing threshold
+│   └── models/                    # Module định nghĩa các mô hình phân loại
+├── webapp/
+│   ├── app.py                     # Streamlit WebApp (4 Tabs: Results, EDA, Feature List, Realtime Streaming)
+│   └── Dockerfile                 # Dockerfile cho Streamlit Frontend
+├── Dockerfile.api                 # Dockerfile cho FastAPI Backend Server
+├── docker-compose.yml             # Cấu hình containerization phối hợp API & WebApp
+├── metadata_features.csv          # Tài liệu mô tả chi tiết các đặc trưng
+├── requirements.txt               # Danh sách thư viện phụ thuộc
+└── README.md                      # Hướng dẫn sử dụng dự án
 ```
 
 ---
 
-## 🛠️ Hướng dẫn cài đặt môi trường
+## 🛠️ Hướng dẫn Cài đặt & Khởi động Hệ thống
 
-Để chạy dự án này một cách ổn định và tránh xung đột thư viện, bạn nên sử dụng môi trường ảo (virtual environment).
+### 🐳 Cách 1: Chạy bằng Docker Compose (Khuyên dùng - Nhanh nhất)
 
-### Bước 1: Kích hoạt môi trường ảo (Virtual Environment)
-Nếu bạn đã có thư mục `venv` trong dự án:
+Chạy lệnh duy nhất tại thư mục gốc của dự án để khởi chạy toàn bộ Backend API và Streamlit WebApp:
 
-- **Trên macOS / Linux:**
-  ```bash
-  source venv/bin/activate
-  ```
-- **Trên Windows (Command Prompt):**
-  ```cmd
-  venv\Scripts\activate
-  ```
-- **Trên Windows (PowerShell):**
-  ```powershell
-  .\venv\Scripts\Activate.ps1
-  ```
-
-*(Nếu chưa có, bạn có thể tạo mới bằng lệnh: `python3 -m venv venv`)*
-
-### Bước 2: Cài đặt các thư viện phụ thuộc
-Sau khi kích hoạt môi trường ảo, chạy lệnh sau để cài đặt các thư viện từ `requirements.txt`:
 ```bash
+docker-compose up --build
+```
+
+Sau khi khởi chạy thành công:
+- **Streamlit WebApp Interface**: Truy cập `http://localhost:8501`
+- **FastAPI Interactive API Docs**: Truy cập `http://localhost:8000/docs`
+
+---
+
+### 🐍 Cách 2: Chạy trực tiếp bằng Python (Virtual Environment)
+
+#### Bước 1: Kích hoạt Môi trường ảo & Cài đặt Thư viện
+```bash
+# Kích hoạt venv (trên macOS/Linux)
+source venv/bin/activate
+
+# Cài đặt thư viện phụ thuộc
 pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-### Bước 3: Đăng ký môi trường ảo với Jupyter Notebook
-Đăng ký kernel của môi trường ảo để Jupyter Notebook có thể nhận diện chính xác các thư viện đã cài đặt:
+#### Bước 2: Huấn luyện & Lưu Mô hình (Nếu chưa có `model/model.joblib`)
 ```bash
-python -m ipykernel install --user --name=venv --display-name "Python (venv)"
+PYTHONPATH=. python app/train.py --model rf --params '{"n_estimators": 50, "max_depth": 10}' --model-out model/model.joblib
 ```
+
+#### Bước 3: Khởi động Backend API & Streamlit Dashboard
+
+- **Terminal 1: Mở FastAPI Backend Server**
+  ```bash
+  PYTHONPATH=. python -m uvicorn app.api:app --reload --port 8000
+  ```
+
+- **Terminal 2: Mở Streamlit Frontend Dashboard**
+  ```bash
+  streamlit run webapp/app.py --server.port 8501
+  ```
 
 ---
 
-## 🚀 Hướng dẫn chạy dự án
+## 🖥️ Các Tính năng Chính trên Giao diện Streamlit Dashboard
 
-### Bước 1: Khởi động Jupyter Notebook
-Chạy lệnh dưới đây tại thư mục gốc của dự án:
-```bash
-jupyter notebook
-```
-Hoặc nếu sử dụng JupyterLab:
-```bash
-jupyter lab
-```
-
-### Bước 2: Chạy các Notebook theo thứ tự
-
-#### 1. `1_clean_data.ipynb`
-* **Nhiệm vụ:**
-  - Kiểm tra kiểu dữ liệu, các giá trị bị thiếu (missing values) và trùng lặp (duplicates).
-  - Phân tích các giá trị ngoại lệ (outliers) bằng phương pháp IQR.
-  - Kiểm tra tính nhất quán và tính hợp lệ của logic nghiệp vụ số dư tài khoản.
-  - Loại bỏ các cột không cần thiết (ví dụ: `isFlaggedFraud`).
-* **Cách thực hiện:** Mở file và chọn **Kernel** -> **Restart & Run All Cells**. Chọn kernel là `"Python (venv)"` mà bạn đã đăng ký ở trên.
-
-#### 2. `2_feature_engineer.ipynb`
-* **Nhiệm vụ:**
-  - Sắp xếp dữ liệu theo trình tự thời gian (`step`) để tránh rò rỉ thông tin từ tương lai.
-  - Mã hóa One-Hot (One-Hot Encoding) cho các loại hình giao dịch và gắn nhãn tài khoản Merchant (`is_merchant_dest`).
-  - Xây dựng các đặc trưng thời gian có tính chu kỳ (`hour_of_day`, `day_of_month`, `day_of_week`).
-  - Xây dựng các đặc trưng chênh lệch số dư (`errorBalanceOrig`, `errorBalanceDest`), tỷ lệ số tiền rút/chuyển, các chỉ báo số dư bằng 0.
-  - Xây dựng đặc trưng lịch sử lũy kế (cumulative history) và vận tốc giao dịch (sliding window velocity) trong 24 giờ qua của tài khoản gửi và tài khoản nhận.
-  - Phân tích mối tương quan của các đặc trưng mới tạo với nhãn mục tiêu `isFraud`.
-  - Lưu kết quả cuối cùng dưới định dạng nén Parquet (`Synthetic_Financial_datasets_features.parquet`) để tối ưu hóa bộ nhớ và tốc độ đọc/ghi.
-* **⚠️ Lưu ý quan trọng:**
-  - Phép tính trượt 24h và tính lũy kế trên tập dữ liệu đầy đủ (~6.3 triệu dòng) là những phép toán tính toán nặng.
-  - Thời gian thực thi toàn bộ notebook `2_feature_engineer.ipynb` có thể mất khoảng **2 giờ (~7.300 giây)** tùy thuộc vào sức mạnh xử lý của CPU. Vui lòng đảm bảo máy tính không bị tắt nguồn hay rơi vào trạng thái ngủ (sleep) trong lúc chạy.
-
----
-
-## 📊 Kết quả đầu ra và Tài liệu Đặc trưng
-
-- **Tập dữ liệu đầu ra:** `Synthetic_Financial_datasets_features.parquet` (~800 MB). Đây là định dạng lưu trữ cột tối ưu, chứa tất cả các đặc trưng gốc và đặc trưng mới được kỹ nghệ hóa.
-- **Tài liệu đặc trưng:** Bạn có thể tham khảo file [metadata_features.csv](file:///Users/hltlong/Project/master/BA_project/metadata_features.csv) để xem danh sách chi tiết cùng định nghĩa, ý nghĩa nghiệp vụ và tầm quan trọng đối với mô hình của từng đặc trưng trong tổng số 48 đặc trưng.
+1. **📊 Tab 1 - Model Results**: Báo cáo chỉ số đánh giá mô hình (Precision 99.37%, Recall 99.98%, AUC-PR 0.9998), Ma trận Nhầm lẫn (Confusion Matrix) và Bảng so sánh hiệu năng 4 mô hình (**Random Forest**, **LightGBM**, **XGBoost**, **Logistic Regression**).
+2. **📁 Tab 2 - Data Source & EDA**: Xem thông tin tổng quan bộ dữ liệu, bản xem trước dữ liệu thô (Raw Data Preview) và các phát hiện dị thường quan trọng từ EDA.
+3. **🧬 Tab 3 - Feature List**: Bảng chi tiết 20 đặc trưng (`SELECTED_FEATURES`), công thức tính toán và ý nghĩa nghiệp vụ nhận diện dị thường.
+4. **⚡ Tab 4 - Real-time Streaming**:
+   - Nút đẩy dữ liệu ngẫu nhiên thời gian thực (`Push 1 Random Transaction`, `Push 10 Random Transactions`).
+   - **Công tắc Giả lập Continuous Real-time (`▶️ Enable Continuous Auto-Stream`)**: Tự động sinh ngẫu nhiên 1-3 giao dịch sau mỗi 1-5 giây.
+   - **Biểu đồ Ticker Multi-Color kiểu Chứng khoán**: Vẽ 4 đường đồ thị biến động xác suất rủi ro (`Fraud Score %`) của cả 4 mô hình song song thời gian thực.

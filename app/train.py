@@ -7,9 +7,10 @@ from sklearn.model_selection import TimeSeriesSplit
 
 from app import config, data, evaluation, imbalance, mlflow_utils, tuning
 from app.learning_curve import plot_learning_curve
-from app.models import lightgbm_model, rf, xgboost_model
+from app.models import lightgbm_model, lr, rf, xgboost_model
 
 MODEL_REGISTRY = {
+    "lr": lr,
     "rf": rf,
     "xgboost": xgboost_model,
     "lightgbm": lightgbm_model,

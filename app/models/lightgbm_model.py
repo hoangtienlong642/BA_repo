@@ -1,7 +1,8 @@
-from lightgbm import LGBMClassifier
-
-
-def build_estimator(class_weight=None, random_state: int = 42) -> LGBMClassifier:
+def build_estimator(class_weight=None, random_state: int = 42):
+    try:
+        from lightgbm import LGBMClassifier
+    except Exception as e:
+        raise ImportError(f"LightGBM could not be loaded: {e}")
     return LGBMClassifier(
         class_weight=class_weight,
         random_state=random_state,

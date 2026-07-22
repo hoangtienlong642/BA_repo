@@ -1,7 +1,8 @@
-from xgboost import XGBClassifier
-
-
-def build_estimator(scale_pos_weight: float = 1.0, random_state: int = 42) -> XGBClassifier:
+def build_estimator(scale_pos_weight: float = 1.0, random_state: int = 42):
+    try:
+        from xgboost import XGBClassifier
+    except Exception as e:
+        raise ImportError(f"XGBoost could not be loaded: {e}")
     return XGBClassifier(
         scale_pos_weight=scale_pos_weight,
         random_state=random_state,
