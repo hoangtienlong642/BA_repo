@@ -1,0 +1,32 @@
+# Render Infrastructure as Code Blueprint (render.yaml)
+# Deploy Backend API & Streamlit WebApp seamlessly on Render.com
+
+services:
+  # 1. Backend Service (FastAPI API)
+  - type: web
+    name: fraud-detection-api
+    env: python
+    region: singapore
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.api:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHONPATH
+        value: .
+
+  # 2. Frontend Service (Streamlit WebApp)
+  - type: web
+    name: fraud-detection-webapp
+    env: python
+    region: singapore
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run webapp/app.py --server.port $PORT --server.address 0.0.0.0
+    envVars:
+      - key: API_URL
+        fromService:
+          type: web
+          name: fraud-detection-api
+          property: host
+      - key: PYTHONPATH
+        value: .

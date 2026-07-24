@@ -129,6 +129,24 @@ PYTHONPATH=. python -m uvicorn app.api:app --host 0.0.0.0 --port 8000 --reload
 
 ---
 
+### ☁️ Cách 4: Deploy lên Cloud Render.com
+
+#### Cách A: Cấu hình biến môi trường thủ công trên Dashboard của Render
+1. Deploy **Backend Service** (FastAPI) lên Render làm Web Service -> Sau khi thành công, bạn lấy URL ví dụ: `https://fraud-detection-api.onrender.com`.
+2. Deploy **Frontend Service** (Streamlit WebApp) lên Render.
+3. Trong giao diện Render của **Streamlit WebApp**:
+   - Vào mục **Environment** -> **Environment Variables**.
+   - Bấm **Add Environment Variable**:
+     - **Key**: `API_URL`
+     - **Value**: `https://fraud-detection-api.onrender.com` (Dán URL Backend vừa lấy ở bước 1).
+   - Bấm **Save Changes** để Render tự động đồng bộ.
+
+#### Cách B: Sử dụng Render Blueprint (`render.yaml` tự động)
+Dự án đã có sẵn file `render.yaml`. Trên Dashboard của Render, bạn chỉ cần chọn **New +** -> **Blueprint**, kết nối với Repository Github này. Render sẽ tự tạo cả 2 dịch vụ BE & FE và tự liên kết `API_URL` giữa 2 dịch vụ tự động!
+
+
+---
+
 ## 🖥️ Các Tính năng Chính trên Giao diện Streamlit Dashboard
 
 1. **📊 Tab 1 - Model Results**: Báo cáo chỉ số đánh giá mô hình (Precision 99.37%, Recall 99.98%, AUC-PR 0.9998), Ma trận Nhầm lẫn (Confusion Matrix) và Bảng so sánh hiệu năng 4 mô hình (**Random Forest**, **LightGBM**, **XGBoost**, **Logistic Regression**).
