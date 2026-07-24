@@ -117,22 +117,26 @@ page = st.sidebar.radio(
 
 
 def score_all_models(raw_payload: dict) -> dict:
-    """Evaluates raw transaction input across all 4 classifiers."""
-    try:
-        from app import features, config
-        import joblib
-        X_f = features.extract_features_single(raw_payload)
-        model_path = config.BASE_DIR / "model" / "model.joblib"
-        rf_model = joblib.load(model_path) if model_path.exists() else None
+    """Evaluates raw transaction input across API backend or local classifier fallback."""
+    res = fetch_api("/predict", method="POST", payload=raw_payload)
+    if res and "fraud_probability" in res:
+        rf_score = float(res["fraud_probability"]) * 100
+    else:
+        try:
+            from app import features, config
+            import joblib
+            X_f = features.extract_features_single(raw_payload)
+            model_path = config.BASE_DIR / "model" / "model.joblib"
+            rf_model = joblib.load(model_path) if model_path.exists() else None
 
-        if rf_model:
-            rf_score = float(rf_model.predict_proba(X_f)[0, 1]) * 100
-        else:
-            is_f = raw_payload["type"] in ["TRANSFER", "CASH_OUT"] and np.isclose(raw_payload["amount"], raw_payload["oldbalanceOrg"], atol=1.0)
+            if rf_model:
+                rf_score = float(rf_model.predict_proba(X_f)[0, 1]) * 100
+            else:
+                is_f = raw_payload["type"] in ["TRANSFER", "CASH_OUT"] and np.isclose(raw_payload["amount"], raw_payload["oldbalanceOrg"], atol=1.0)
+                rf_score = 98.5 if is_f else 1.2
+        except Exception:
+            is_f = raw_payload["type"] in ["TRANSFER", "CASH_OUT"] and raw_payload["amount"] == raw_payload["oldbalanceOrg"]
             rf_score = 98.5 if is_f else 1.2
-    except Exception:
-        is_f = raw_payload["type"] in ["TRANSFER", "CASH_OUT"] and raw_payload["amount"] == raw_payload["oldbalanceOrg"]
-        rf_score = 98.5 if is_f else 1.2
 
     # Compute characteristic probability curves for LightGBM, XGBoost, and Logistic Regression
     if rf_score >= 50:
@@ -150,6 +154,7 @@ def score_all_models(raw_payload: dict) -> dict:
         "xgb": round(xgb_score, 2),
         "lr": round(lr_score, 2),
     }
+
 
 
 def score_random_tx():
@@ -471,28 +476,32 @@ elif page == "⚡ 4. Real-time Streaming":
         )
 
     with csv_col2:
-        st.markdown("#### Need a test CSV file?")
-        sample_stream_df = pd.DataFrame([
-            {"step": 1, "type": "TRANSFER", "amount": 181.00, "nameOrig": "C1305486145", "oldbalanceOrg": 181.0, "newbalanceOrig": 0.00, "nameDest": "C553264065", "oldbalanceDest": 0.0, "newbalanceDest": 0.0},
-            {"step": 1, "type": "CASH_OUT", "amount": 181.00, "nameOrig": "C840083671", "oldbalanceOrg": 181.0, "newbalanceOrig": 0.00, "nameDest": "C38997010", "oldbalanceDest": 21182.0, "newbalanceDest": 0.0},
-            {"step": 1, "type": "PAYMENT", "amount": 9839.64, "nameOrig": "C1231006815", "oldbalanceOrg": 170136.0, "newbalanceOrig": 160296.36, "nameDest": "M1979787155", "oldbalanceDest": 0.0, "newbalanceDest": 0.0},
-            {"step": 1, "type": "TRANSFER", "amount": 2806.00, "nameOrig": "C1420196421", "oldbalanceOrg": 2806.0, "newbalanceOrig": 0.0, "nameDest": "C972765878", "oldbalanceDest": 0.0, "newbalanceDest": 0.0},
-            {"step": 1, "type": "CASH_OUT", "amount": 2806.00, "nameOrig": "C2101565358", "oldbalanceOrg": 2806.0, "newbalanceOrig": 0.0, "nameDest": "C1007251739", "oldbalanceDest": 26202.0, "newbalanceDest": 0.0},
-            {"step": 1, "type": "PAYMENT", "amount": 1864.28, "nameOrig": "C1666544295", "oldbalanceOrg": 21249.0, "newbalanceOrig": 19384.72, "nameDest": "M2044282225", "oldbalanceDest": 0.0, "newbalanceDest": 0.0},
-            {"step": 1, "type": "TRANSFER", "amount": 20128.00, "nameOrig": "C137533655", "oldbalanceOrg": 20128.0, "newbalanceOrig": 0.0, "nameDest": "C1848415041", "oldbalanceDest": 0.0, "newbalanceDest": 0.0},
-            {"step": 1, "type": "CASH_OUT", "amount": 20128.00, "nameOrig": "C2144545437", "oldbalanceOrg": 20128.0, "newbalanceOrig": 0.0, "nameDest": "C840083671", "oldbalanceDest": 0.0, "newbalanceDest": 20128.0},
-            {"step": 1, "type": "PAYMENT", "amount": 11668.14, "nameOrig": "C2048537720", "oldbalanceOrg": 41554.0, "newbalanceOrig": 29885.86, "nameDest": "M1230701703", "oldbalanceDest": 0.0, "newbalanceDest": 0.0},
-            {"step": 1, "type": "TRANSFER", "amount": 350000.00, "nameOrig": "C998811223", "oldbalanceOrg": 350000.0, "newbalanceOrig": 0.0, "nameDest": "C445566778", "oldbalanceDest": 0.0, "newbalanceDest": 0.0},
-            {"step": 1, "type": "PAYMENT", "amount": 7817.71, "nameOrig": "C90045638", "oldbalanceOrg": 53860.0, "newbalanceOrig": 46042.29, "nameDest": "M573534109", "oldbalanceDest": 0.0, "newbalanceDest": 0.0},
-            {"step": 1, "type": "DEBIT", "amount": 5337.77, "nameOrig": "C712410124", "oldbalanceOrg": 41720.0, "newbalanceOrig": 36382.23, "nameDest": "C195600860", "oldbalanceDest": 41898.0, "newbalanceDest": 47235.77},
-        ])
-        st.download_button(
-            "📥 Download Sample Streaming CSV",
-            data=sample_stream_df.to_csv(index=False).encode('utf-8'),
-            file_name="realtime_stream_sample.csv",
-            mime="text/csv",
-            key="btn_download_stream_sample_csv_v1"
-        )
+        st.markdown("#### Need a test dataset file?")
+        sample_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "realtime_stream_test_sample.csv")
+        if not os.path.exists(sample_path):
+            sample_path = os.path.join("data", "realtime_stream_test_sample.csv")
+
+        if os.path.exists(sample_path):
+            try:
+                sample_stream_df = pd.read_csv(sample_path)
+            except Exception:
+                sample_stream_df = None
+        else:
+            sample_stream_df = None
+
+        if sample_stream_df is not None and not sample_stream_df.empty:
+            st.download_button(
+                f"📥 Download Real Test Set CSV ({len(sample_stream_df):,} records)",
+                data=sample_stream_df.to_csv(index=False).encode('utf-8'),
+                file_name="realtime_stream_test_set_1000.csv",
+                mime="text/csv",
+                key="btn_download_stream_sample_csv_v3"
+            )
+            if st.button("⚡ Quick-Load 1,000 Test Set Records", key="btn_quick_load_test_set_1000"):
+                st.session_state.uploaded_df_csv = sample_stream_df
+                st.session_state.csv_stream_idx = 0
+                st.rerun()
+
 
     if uploaded_csv is not None:
         try:
