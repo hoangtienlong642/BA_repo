@@ -67,25 +67,30 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# API Base URL - Read from environment variable (for Docker) or default to localhost
-API_URL = os.getenv("API_URL", "http://127.0.0.1:8000")
-CANDIDATE_URLS = [API_URL, "http://api:8000", "http://127.0.0.1:8000", "http://localhost:8000"]
+# API Base URL - Read from environment variable (for Docker/env) or default to Ngrok endpoint
+API_URL = os.getenv("API_URL", "https://f65e-20-212-171-173.ngrok-free.app")
+CANDIDATE_URLS = [API_URL, "https://f65e-20-212-171-173.ngrok-free.app", "http://api:8000", "http://127.0.0.1:8000", "http://localhost:8000"]
 
 
 def fetch_api(endpoint: str, method: str = "GET", payload: dict = None):
     urls_to_try = list(dict.fromkeys([API_URL] + CANDIDATE_URLS))
+    headers = {
+        "ngrok-skip-browser-warning": "true",
+        "User-Agent": "FraudDetectionApp"
+    }
     for base_url in urls_to_try:
         url = f"{base_url.rstrip('/')}{endpoint}"
         try:
             if method == "POST":
-                res = requests.post(url, json=payload, timeout=3)
+                res = requests.post(url, json=payload, headers=headers, timeout=5)
             else:
-                res = requests.get(url, timeout=3)
+                res = requests.get(url, headers=headers, timeout=5)
             if res.status_code == 200:
                 return res.json()
         except Exception:
             continue
     return None
+
 
 
 # Sidebar Header & Navigation
