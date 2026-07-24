@@ -42,6 +42,25 @@ Sau khi khởi chạy thành công:
 
 ---
 
+### 🌐 Cấu hình API Endpoint qua File `.env`
+
+Hệ thống cho phép tùy chỉnh địa chỉ Backend API Endpoint linh hoạt thông qua file `.env` ở thư mục gốc:
+
+1. **Tạo/Chỉnh sửa file `.env`**:
+   ```bash
+   cp .env.example .env
+   ```
+
+2. **Cập nhật URL Backend API**:
+   ```env
+   # Địa chỉ URL của FastAPI Backend Server
+   API_URL=http://127.0.0.1:8000
+   ```
+   *(Giao diện Streamlit Frontend sẽ tự động đọc biến `API_URL` từ file `.env` khi kết nối đến dịch vụ Backend).*
+
+---
+
+
 ### 🐍 Cách 2: Chạy trực tiếp bằng Python (Virtual Environment)
 
 #### Bước 1: Kích hoạt Môi trường ảo & Cài đặt Thư viện
