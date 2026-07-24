@@ -1,11 +1,6 @@
 [client]
-toolbarMode = "auto"
+toolbarMode = "developer"
 showErrorDetails = true
 
 [theme]
-base = "light"
-primaryColor = "#1f77b4"
-backgroundColor = "#ffffff"
-secondaryBackgroundColor = "#f8f9fa"
-textColor = "#212529"
 font = "sans serif"

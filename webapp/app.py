@@ -57,7 +57,7 @@ st.markdown("""
         margin-bottom: 1.5rem;
     }
     .card-box {
-        background-color: #f8f9fa;
+        background-color: rgba(127, 127, 127, 0.08);
         border-radius: 10px;
         padding: 18px;
         border-left: 5px solid #1f77b4;
@@ -107,6 +107,8 @@ page = st.sidebar.radio(
     ],
     key="main_tab_navigation_v8"
 )
+
+
 
 
 def score_all_models(raw_payload: dict) -> dict:
