@@ -221,7 +221,9 @@ __marimo__/
 
 # Data files (regenerate via notebooks 0-2)
 *.csv
+!data/realtime_stream_test_sample.csv
 *.parquet
+
 
 # Superpowers scratch
 .superpowers/

@@ -474,26 +474,32 @@ elif page == "⚡ 4. Real-time Streaming":
         if not os.path.exists(sample_path):
             sample_path = os.path.join("data", "realtime_stream_test_sample.csv")
 
+        sample_stream_df = None
         if os.path.exists(sample_path):
             try:
                 sample_stream_df = pd.read_csv(sample_path)
             except Exception:
                 sample_stream_df = None
-        else:
-            sample_stream_df = None
 
-        if sample_stream_df is not None and not sample_stream_df.empty:
-            st.download_button(
-                f"📥 Download Real Test Set CSV ({len(sample_stream_df):,} records)",
-                data=sample_stream_df.to_csv(index=False).encode('utf-8'),
-                file_name="realtime_stream_test_set_1000.csv",
-                mime="text/csv",
-                key="btn_download_stream_sample_csv_v3"
-            )
-            if st.button("⚡ Quick-Load 1,000 Test Set Records", key="btn_quick_load_test_set_1000"):
-                st.session_state.uploaded_df_csv = sample_stream_df
-                st.session_state.csv_stream_idx = 0
-                st.rerun()
+        if sample_stream_df is None or sample_stream_df.empty:
+            sample_stream_df = pd.DataFrame([
+                {"step": 601, "type": "TRANSFER", "amount": 181.00, "nameOrig": "C1305486145", "oldbalanceOrg": 181.0, "newbalanceOrig": 0.00, "nameDest": "C553264065", "oldbalanceDest": 0.0, "newbalanceDest": 0.0},
+                {"step": 601, "type": "CASH_OUT", "amount": 181.00, "nameOrig": "C840083671", "oldbalanceOrg": 181.0, "newbalanceOrig": 0.00, "nameDest": "C38997010", "oldbalanceDest": 21182.0, "newbalanceDest": 0.0},
+                {"step": 601, "type": "PAYMENT", "amount": 9839.64, "nameOrig": "C1231006815", "oldbalanceOrg": 170136.0, "newbalanceOrig": 160296.36, "nameDest": "M1979787155", "oldbalanceDest": 0.0, "newbalanceDest": 0.0},
+            ])
+
+        st.download_button(
+            f"📥 Download Real Test Set CSV ({len(sample_stream_df):,} records)",
+            data=sample_stream_df.to_csv(index=False).encode('utf-8'),
+            file_name="realtime_stream_test_set_1000.csv",
+            mime="text/csv",
+            key="btn_download_stream_sample_csv_v3"
+        )
+        if st.button("⚡ Quick-Load Test Set Records", key="btn_quick_load_test_set_1000"):
+            st.session_state.uploaded_df_csv = sample_stream_df
+            st.session_state.csv_stream_idx = 0
+            st.rerun()
+
 
 
     if uploaded_csv is not None:
