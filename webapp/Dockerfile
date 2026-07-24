@@ -12,10 +12,10 @@ COPY requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --prefer-binary -r requirements.txt
 
-# Copy webapp and app modules
+# Copy webapp and app modules (data/ is a runtime volume mount, not baked into image)
 COPY webapp ./webapp
 COPY app ./app
-COPY data ./data
+RUN mkdir -p data
 
 EXPOSE 12076
 
