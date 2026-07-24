@@ -37,8 +37,8 @@ docker-compose up --build
 ```
 
 Sau khi khởi chạy thành công:
-- **Streamlit WebApp Interface**: Truy cập `http://localhost:8501`
-- **FastAPI Interactive API Docs**: Truy cập `http://localhost:8000/docs`
+- **Streamlit WebApp Interface**: Truy cập `http://localhost:12076`
+- **FastAPI Interactive API Docs**: Truy cập `http://localhost:12075/docs`
 
 ---
 
@@ -54,7 +54,7 @@ Hệ thống cho phép tùy chỉnh địa chỉ Backend API Endpoint linh hoạ
 2. **Cập nhật URL Backend API**:
    ```env
    # Địa chỉ URL của FastAPI Backend Server
-   API_URL=http://127.0.0.1:8000
+   API_URL=http://127.0.0.1:12075
    ```
    *(Giao diện Streamlit Frontend sẽ tự động đọc biến `API_URL` từ file `.env` khi kết nối đến dịch vụ Backend).*
 
@@ -82,12 +82,12 @@ PYTHONPATH=. python app/train.py --model rf --params '{"n_estimators": 50, "max_
 
 - **Terminal 1: Mở FastAPI Backend Server**
   ```bash
-  PYTHONPATH=. python -m uvicorn app.api:app --reload --port 8000
+  PYTHONPATH=. python -m uvicorn app.api:app --reload --port 12075
   ```
 
 - **Terminal 2: Mở Streamlit Frontend Dashboard**
   ```bash
-  streamlit run webapp/app.py --server.port 8501
+  streamlit run webapp/app.py --server.port 12076
   ```
 
 ---
@@ -103,7 +103,7 @@ docker-compose up --build api
 
 # Cách B: Build & Run trực tiếp bằng Dockerfile.api
 docker build -f Dockerfile.api -t fraud-detection-api .
-docker run -d -p 8000:8000 -v $(pwd)/model:/app/model --name fraud-api fraud-detection-api
+docker run -d -p 12075:12075 -v $(pwd)/model:/app/model --name fraud-api fraud-detection-api
 ```
 
 #### Phương án 3.2: Chạy riêng Backend qua Môi trường ảo Python
@@ -115,17 +115,17 @@ source venv/bin/activate  # Hoặc source .venv/bin/activate
 pip install -r requirements.txt
 
 # 3. Khởi động riêng FastAPI Server
-PYTHONPATH=. python -m uvicorn app.api:app --host 0.0.0.0 --port 8000 --reload
+PYTHONPATH=. python -m uvicorn app.api:app --host 0.0.0.0 --port 12075 --reload
 ```
 
 #### 📌 Truy cập các Endpoints của Backend API:
-- **Swagger Interactive API Docs**: `http://localhost:8000/docs`
-- **ReDoc API Documentation**: `http://localhost:8000/redoc`
-- **Health Check**: `http://localhost:8000/health`
-- **Scoring Endpoint (`POST`)**: `http://localhost:8000/predict`
-- **Batch Push Endpoint (`POST`)**: `http://localhost:8000/push-data`
-- **Review Queue Endpoint (`GET`)**: `http://localhost:8000/queue`
-- **Data Drift & Retraining Triggers**: `http://localhost:8000/monitoring/drift`
+- **Swagger Interactive API Docs**: `http://localhost:12075/docs`
+- **ReDoc API Documentation**: `http://localhost:12075/redoc`
+- **Health Check**: `http://localhost:12075/health`
+- **Scoring Endpoint (`POST`)**: `http://localhost:12075/predict`
+- **Batch Push Endpoint (`POST`)**: `http://localhost:12075/push-data`
+- **Review Queue Endpoint (`GET`)**: `http://localhost:12075/queue`
+- **Data Drift & Retraining Triggers**: `http://localhost:12075/monitoring/drift`
 
 ---
 

@@ -17,8 +17,8 @@ COPY webapp ./webapp
 COPY app ./app
 COPY data ./data
 
-EXPOSE 8501
+EXPOSE 12076
 
 ENV PYTHONPATH=/app
 
-CMD ["streamlit", "run", "webapp/app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+CMD ["streamlit", "run", "webapp/app.py", "--server.port=12076", "--server.address=0.0.0.0"]
