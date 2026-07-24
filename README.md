@@ -73,12 +73,52 @@ PYTHONPATH=. python app/train.py --model rf --params '{"n_estimators": 50, "max_
 
 ---
 
+### ⚙️ Cách 3: Cài đặt & Chạy riêng lẻ Backend API (FastAPI Standalone)
+
+Nếu bạn chỉ muốn chạy riêng dịch vụ Backend API để tích hợp hoặc kiểm thử các endpoint API độc lập:
+
+#### Phương án 3.1: Chạy riêng Backend qua Docker
+```bash
+# Cách A: Chạy bằng Docker Compose chỉ dịch vụ Backend API
+docker-compose up --build api
+
+# Cách B: Build & Run trực tiếp bằng Dockerfile.api
+docker build -f Dockerfile.api -t fraud-detection-api .
+docker run -d -p 8000:8000 -v $(pwd)/model:/app/model --name fraud-api fraud-detection-api
+```
+
+#### Phương án 3.2: Chạy riêng Backend qua Môi trường ảo Python
+```bash
+# 1. Kích hoạt môi trường ảo
+source venv/bin/activate  # Hoặc source .venv/bin/activate
+
+# 2. Cài đặt các thư viện cần thiết
+pip install -r requirements.txt
+
+# 3. Khởi động riêng FastAPI Server
+PYTHONPATH=. python -m uvicorn app.api:app --host 0.0.0.0 --port 8000 --reload
+```
+
+#### 📌 Truy cập các Endpoints của Backend API:
+- **Swagger Interactive API Docs**: `http://localhost:8000/docs`
+- **ReDoc API Documentation**: `http://localhost:8000/redoc`
+- **Health Check**: `http://localhost:8000/health`
+- **Scoring Endpoint (`POST`)**: `http://localhost:8000/predict`
+- **Batch Push Endpoint (`POST`)**: `http://localhost:8000/push-data`
+- **Review Queue Endpoint (`GET`)**: `http://localhost:8000/queue`
+- **Data Drift & Retraining Triggers**: `http://localhost:8000/monitoring/drift`
+
+---
+
 ## 🖥️ Các Tính năng Chính trên Giao diện Streamlit Dashboard
 
 1. **📊 Tab 1 - Model Results**: Báo cáo chỉ số đánh giá mô hình (Precision 99.37%, Recall 99.98%, AUC-PR 0.9998), Ma trận Nhầm lẫn (Confusion Matrix) và Bảng so sánh hiệu năng 4 mô hình (**Random Forest**, **LightGBM**, **XGBoost**, **Logistic Regression**).
 2. **📁 Tab 2 - Data Source & EDA**: Xem thông tin tổng quan bộ dữ liệu, bản xem trước dữ liệu thô (Raw Data Preview) và các phát hiện dị thường quan trọng từ EDA.
 3. **🧬 Tab 3 - Feature List**: Bảng chi tiết 20 đặc trưng (`SELECTED_FEATURES`), công thức tính toán và ý nghĩa nghiệp vụ nhận diện dị thường.
 4. **⚡ Tab 4 - Real-time Streaming**:
-   - Nút đẩy dữ liệu ngẫu nhiên thời gian thực (`Push 1 Random Transaction`, `Push 10 Random Transactions`).
+   - **Upload File CSV & Stream 3 bản ghi/giây**: Upload file CSV giao dịch bất kỳ, ứng dụng sẽ đẩy tuần tự 3 bản ghi/giây vào 4 mô hình kèm thanh tiến trình trực quan.
+   - **Tải file CSV mẫu nhanh (`📥 Download Sample Streaming CSV`)**: Cung cấp nút tải nhanh file dữ liệu giao dịch mẫu để trải nghiệm streaming ngay lập tức.
+   - **Nút đẩy dữ liệu ngẫu nhiên thời gian thực**: (`Push 1 Random Transaction`, `Push 10 Random Transactions`).
    - **Công tắc Giả lập Continuous Real-time (`▶️ Enable Continuous Auto-Stream`)**: Tự động sinh ngẫu nhiên 1-3 giao dịch sau mỗi 1-5 giây.
    - **Biểu đồ Ticker Multi-Color kiểu Chứng khoán**: Vẽ 4 đường đồ thị biến động xác suất rủi ro (`Fraud Score %`) của cả 4 mô hình song song thời gian thực.
+

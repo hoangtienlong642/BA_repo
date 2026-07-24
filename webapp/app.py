@@ -16,6 +16,11 @@ st.set_page_config(
 # Initialize session state for real-time stock-style streaming chart
 if "stream_history" not in st.session_state:
     st.session_state.stream_history = []
+if "csv_stream_idx" not in st.session_state:
+    st.session_state.csv_stream_idx = 0
+if "csv_is_streaming" not in st.session_state:
+    st.session_state.csv_is_streaming = False
+
 
 # Custom CSS styling
 st.markdown("""
@@ -146,6 +151,91 @@ def score_random_tx():
         "Tx ID": f"TX-SIM-{np.random.randint(1000,9999)}",
         "Type": t_type,
         "Amount ($)": amt,
+        "Random Forest (%)": scores["rf"],
+        "LightGBM (%)": scores["lgbm"],
+        "XGBoost (%)": scores["xgb"],
+        "Logistic Regression (%)": scores["lr"],
+        "Status": "🔴 FRAUD" if is_pred == 1 else "🟢 LEGIT"
+    }
+
+
+def parse_csv_row_to_payload(row: pd.Series) -> dict:
+    """Parses a CSV row into a standardized transaction dictionary."""
+    row_dict = {str(k).strip(): v for k, v in row.items()}
+
+    def get_val(keys, default):
+        for k in keys:
+            for rk in row_dict:
+                if rk.lower() == k.lower():
+                    val = row_dict[rk]
+                    if pd.notna(val):
+                        return val
+        return default
+
+    try:
+        step = int(get_val(["step"], 1))
+    except Exception:
+        step = 1
+
+    try:
+        t_type = str(get_val(["type"], "TRANSFER")).upper()
+    except Exception:
+        t_type = "TRANSFER"
+
+    try:
+        amount = float(get_val(["amount"], 0.0))
+    except Exception:
+        amount = 0.0
+
+    name_orig = str(get_val(["nameOrig", "nameorig"], f"C{np.random.randint(100000, 999999)}"))
+
+    try:
+        old_orig = float(get_val(["oldbalanceOrg", "oldbalanceorig", "oldbalanceorg"], amount))
+    except Exception:
+        old_orig = amount
+
+    try:
+        new_orig = float(get_val(["newbalanceOrig", "newbalanceorig"], 0.0))
+    except Exception:
+        new_orig = 0.0
+
+    name_dest = str(get_val(["nameDest", "namedest"], f"M{np.random.randint(100000, 999999)}"))
+
+    try:
+        old_dest = float(get_val(["oldbalanceDest", "oldbalancedest"], 0.0))
+    except Exception:
+        old_dest = 0.0
+
+    try:
+        new_dest = float(get_val(["newbalanceDest", "newbalancedest"], 0.0))
+    except Exception:
+        new_dest = 0.0
+
+    return {
+        "step": step,
+        "type": t_type,
+        "amount": amount,
+        "nameOrig": name_orig,
+        "oldbalanceOrg": old_orig,
+        "newbalanceOrig": new_orig,
+        "nameDest": name_dest,
+        "oldbalanceDest": old_dest,
+        "newbalanceDest": new_dest
+    }
+
+
+def score_csv_tx(raw_payload: dict, row_idx: int):
+    scores = score_all_models(raw_payload)
+    is_pred = 1 if scores["rf"] >= 5.0 else 0
+
+    # Sync to backend API if connected
+    fetch_api("/predict", method="POST", payload=raw_payload)
+
+    return {
+        "Time": time.strftime("%H:%M:%S"),
+        "Tx ID": f"CSV-{row_idx + 1} ({raw_payload['nameOrig']})",
+        "Type": raw_payload["type"],
+        "Amount ($)": raw_payload["amount"],
         "Random Forest (%)": scores["rf"],
         "LightGBM (%)": scores["lgbm"],
         "XGBoost (%)": scores["xgb"],
@@ -339,14 +429,99 @@ elif page == "🧬 3. Feature List":
 # ==============================================================================
 elif page == "⚡ 4. Real-time Streaming":
     st.markdown('<div class="main-header">⚡ Multi-Model Real-time Data Streaming & Ticker</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-header">Feed incoming data points into all 4 classifiers (Random Forest, LightGBM, XGBoost, Logistic Regression) and track multi-color line curves.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sub-header">Feed incoming data points sequentially into all 4 classifiers (Random Forest, LightGBM, XGBoost, Logistic Regression) and monitor live probability graphs.</div>', unsafe_allow_html=True)
 
-    # CONTINUOUS LIVE STREAMING TOGGLE
-    st.markdown("### 🔄 Real-time Continuous Auto-Stream Simulation")
-    auto_stream = st.toggle("▶️ Enable Continuous Auto-Stream (Pushes 1 to 3 random transactions every 1 to 5 seconds)", key="toggle_auto_stream_v8")
+    # --------------------------------------------------------------------------
+    # SECTION 1: CSV FILE STREAMING (3 RECORDS / SEC)
+    # --------------------------------------------------------------------------
+    st.markdown("### 📁 Option 1: Stream from Uploaded CSV File (3 records / sec)")
+
+    csv_col1, csv_col2 = st.columns([2, 1])
+
+    with csv_col1:
+        uploaded_csv = st.file_uploader(
+            "Upload CSV file containing transaction records (`step`, `type`, `amount`, `nameOrig`, `oldbalanceOrg`, etc.)",
+            type=["csv"],
+            key="realtime_csv_uploader_v1"
+        )
+
+    with csv_col2:
+        st.markdown("#### Need a test CSV file?")
+        sample_stream_df = pd.DataFrame([
+            {"step": 1, "type": "TRANSFER", "amount": 181.00, "nameOrig": "C1305486145", "oldbalanceOrg": 181.0, "newbalanceOrig": 0.00, "nameDest": "C553264065", "oldbalanceDest": 0.0, "newbalanceDest": 0.0},
+            {"step": 1, "type": "CASH_OUT", "amount": 181.00, "nameOrig": "C840083671", "oldbalanceOrg": 181.0, "newbalanceOrig": 0.00, "nameDest": "C38997010", "oldbalanceDest": 21182.0, "newbalanceDest": 0.0},
+            {"step": 1, "type": "PAYMENT", "amount": 9839.64, "nameOrig": "C1231006815", "oldbalanceOrg": 170136.0, "newbalanceOrig": 160296.36, "nameDest": "M1979787155", "oldbalanceDest": 0.0, "newbalanceDest": 0.0},
+            {"step": 1, "type": "TRANSFER", "amount": 2806.00, "nameOrig": "C1420196421", "oldbalanceOrg": 2806.0, "newbalanceOrig": 0.0, "nameDest": "C972765878", "oldbalanceDest": 0.0, "newbalanceDest": 0.0},
+            {"step": 1, "type": "CASH_OUT", "amount": 2806.00, "nameOrig": "C2101565358", "oldbalanceOrg": 2806.0, "newbalanceOrig": 0.0, "nameDest": "C1007251739", "oldbalanceDest": 26202.0, "newbalanceDest": 0.0},
+            {"step": 1, "type": "PAYMENT", "amount": 1864.28, "nameOrig": "C1666544295", "oldbalanceOrg": 21249.0, "newbalanceOrig": 19384.72, "nameDest": "M2044282225", "oldbalanceDest": 0.0, "newbalanceDest": 0.0},
+            {"step": 1, "type": "TRANSFER", "amount": 20128.00, "nameOrig": "C137533655", "oldbalanceOrg": 20128.0, "newbalanceOrig": 0.0, "nameDest": "C1848415041", "oldbalanceDest": 0.0, "newbalanceDest": 0.0},
+            {"step": 1, "type": "CASH_OUT", "amount": 20128.00, "nameOrig": "C2144545437", "oldbalanceOrg": 20128.0, "newbalanceOrig": 0.0, "nameDest": "C840083671", "oldbalanceDest": 0.0, "newbalanceDest": 20128.0},
+            {"step": 1, "type": "PAYMENT", "amount": 11668.14, "nameOrig": "C2048537720", "oldbalanceOrg": 41554.0, "newbalanceOrig": 29885.86, "nameDest": "M1230701703", "oldbalanceDest": 0.0, "newbalanceDest": 0.0},
+            {"step": 1, "type": "TRANSFER", "amount": 350000.00, "nameOrig": "C998811223", "oldbalanceOrg": 350000.0, "newbalanceOrig": 0.0, "nameDest": "C445566778", "oldbalanceDest": 0.0, "newbalanceDest": 0.0},
+            {"step": 1, "type": "PAYMENT", "amount": 7817.71, "nameOrig": "C90045638", "oldbalanceOrg": 53860.0, "newbalanceOrig": 46042.29, "nameDest": "M573534109", "oldbalanceDest": 0.0, "newbalanceDest": 0.0},
+            {"step": 1, "type": "DEBIT", "amount": 5337.77, "nameOrig": "C712410124", "oldbalanceOrg": 41720.0, "newbalanceOrig": 36382.23, "nameDest": "C195600860", "oldbalanceDest": 41898.0, "newbalanceDest": 47235.77},
+        ])
+        st.download_button(
+            "📥 Download Sample Streaming CSV",
+            data=sample_stream_df.to_csv(index=False).encode('utf-8'),
+            file_name="realtime_stream_sample.csv",
+            mime="text/csv",
+            key="btn_download_stream_sample_csv_v1"
+        )
+
+    if uploaded_csv is not None:
+        try:
+            df_csv = pd.read_csv(uploaded_csv)
+            st.session_state.uploaded_df_csv = df_csv
+        except Exception as e:
+            st.error(f"Error reading CSV file: {e}")
+            df_csv = None
+    elif "uploaded_df_csv" in st.session_state:
+        df_csv = st.session_state.uploaded_df_csv
+    else:
+        df_csv = None
+
+    if df_csv is not None and not df_csv.empty:
+        total_rows = len(df_csv)
+        curr_idx = st.session_state.csv_stream_idx
+        progress_pct = min(1.0, curr_idx / total_rows) if total_rows > 0 else 0.0
+
+        st.success(f"📄 Loaded CSV File: **{total_rows:,} records** detected. Stream progress: **{curr_idx} / {total_rows} records**")
+        st.progress(progress_pct, text=f"CSV Stream Progress: {curr_idx}/{total_rows} ({progress_pct*100:.1f}%)")
+
+        ctrl_col1, ctrl_col2, ctrl_col3 = st.columns(3)
+        with ctrl_col1:
+            if not st.session_state.csv_is_streaming:
+                if st.button("▶️ Start CSV Streaming (3 records/sec)", key="btn_start_csv_stream"):
+                    st.session_state.csv_is_streaming = True
+                    st.rerun()
+            else:
+                if st.button("⏸️ Pause CSV Streaming", key="btn_pause_csv_stream"):
+                    st.session_state.csv_is_streaming = False
+                    st.rerun()
+
+        with ctrl_col2:
+            if st.button("🔄 Reset Stream Progress to 0", key="btn_reset_csv_stream"):
+                st.session_state.csv_stream_idx = 0
+                st.session_state.csv_is_streaming = False
+                st.rerun()
+
+        with ctrl_col3:
+            if st.button("🗑️ Clear Stream History", key="btn_clear_history_csv"):
+                st.session_state.stream_history = []
+                st.rerun()
+
+        with st.expander("👁️ Preview Uploaded CSV File Data"):
+            st.dataframe(df_csv, width="stretch", height=200)
 
     st.markdown("---")
-    st.markdown("### 🎲 Manual Random Data Push Controls")
+
+    # --------------------------------------------------------------------------
+    # SECTION 2: CONTINUOUS RANDOM AUTO-STREAM & MANUAL PUSH CONTROLS
+    # --------------------------------------------------------------------------
+    st.markdown("### 🎲 Option 2: Random Simulation Auto-Stream Controls")
+
+    auto_stream = st.toggle("▶️ Enable Continuous Random Auto-Stream", key="toggle_auto_stream_v8")
 
     btn_col1, btn_col2, btn_col3 = st.columns([1, 1, 1])
     push_single = False
@@ -359,7 +534,7 @@ elif page == "⚡ 4. Real-time Streaming":
         if st.button("🔥 Push 10 Random Transactions", key="btn_random_batch_v8"):
             push_batch = True
     with btn_col3:
-        if st.button("🗑️ Clear Stream History", key="btn_clear_stream_v8"):
+        if st.button("🗑️ Clear Stream History", key="btn_clear_stream_v8_sec2"):
             st.session_state.stream_history = []
             st.rerun()
 
@@ -377,13 +552,15 @@ elif page == "⚡ 4. Real-time Streaming":
 
     st.markdown("---")
 
-    # ==========================================================================
-    # REAL-TIME STOCK-STYLE TICKER CHART VIEW ACROSS ALL 4 MODELS
-    # ==========================================================================
-    st.markdown("### 📈 Multi-Model Stock-Style Real-time Data Stream Monitor")
+    # --------------------------------------------------------------------------
+    # SECTION 3: MULTI-MODEL STOCK-STYLE TICKER & GRAPH MONITOR
+    # --------------------------------------------------------------------------
+    st.markdown("### 📈 Multi-Model Real-time Streaming Monitor & Graph")
 
-    if auto_stream:
-        st.info("🟢 **AUTO-STREAM SIMULATION RUNNING**: Scoring each incoming point across Random Forest, LightGBM, XGBoost & Logistic Regression...")
+    if st.session_state.csv_is_streaming:
+        st.info("⚡ **CSV REAL-TIME STREAMING ACTIVE (3 records/sec)**: Sequentially pushing records from uploaded CSV into Random Forest, LightGBM, XGBoost & Logistic Regression models...")
+    elif auto_stream:
+        st.info("🟢 **RANDOM AUTO-STREAM RUNNING**: Scoring incoming transactions across all 4 classifiers...")
 
     if st.session_state.stream_history:
         df_stream = pd.DataFrame(st.session_state.stream_history)
@@ -391,31 +568,52 @@ elif page == "⚡ 4. Real-time Streaming":
         c_chart1, c_chart2 = st.columns([2, 1])
 
         with c_chart1:
-            st.markdown("#### Real-time Fraud Probability (%) Curves by Classifier")
+            st.markdown("#### Live Real-Time Probability (%) Graph by Model")
             chart_cols = ["Random Forest (%)", "LightGBM (%)", "XGBoost (%)", "Logistic Regression (%)"]
             chart_df = df_stream[chart_cols].copy()
             st.line_chart(chart_df, width="stretch")
 
         with c_chart2:
-            st.markdown("#### Live Stream Summary")
+            st.markdown("#### Live Stream Statistics")
             total_pushed = len(df_stream)
             fraud_pushed = sum(1 for x in st.session_state.stream_history if "FRAUD" in x["Status"])
             avg_rf = df_stream["Random Forest (%)"].mean()
             avg_lr = df_stream["Logistic Regression (%)"].mean()
 
-            st.metric("Total Streamed Transactions", total_pushed)
+            st.metric("Total Streamed Points", total_pushed)
             st.metric("Fraud Cases Detected", fraud_pushed, delta=f"{fraud_pushed} cases 🔴", delta_color="inverse")
             st.metric("Avg RF Fraud Score", f"{avg_rf:.2f}%")
             st.metric("Avg Baseline LR Score", f"{avg_lr:.2f}%")
 
-        st.markdown("#### 📋 Real-time Ingested Transaction Multi-Model Log")
+        st.markdown("#### 📋 Real-time Multi-Model Scored Log")
         st.dataframe(df_stream, width="stretch")
 
     else:
-        st.info("💡 Toggle **`▶️ Enable Continuous Auto-Stream`** above or click **`🎲 Push 1 Random Transaction`** to observe multi-colored real-time model curves.")
+        st.info("💡 Upload a CSV file above and click **`▶️ Start CSV Streaming (3 records/sec)`**, or turn on **`▶️ Enable Continuous Random Auto-Stream`** to observe real-time graphs.")
 
-    # AUTO STREAM LOOP TRIGGER
-    if auto_stream:
+    # --------------------------------------------------------------------------
+    # STREAMING LOOPS (CSV & AUTO-STREAM)
+    # --------------------------------------------------------------------------
+    if st.session_state.csv_is_streaming and df_csv is not None and not df_csv.empty:
+        curr_idx = st.session_state.csv_stream_idx
+        if curr_idx < len(df_csv):
+            # Take next 3 records to stream sequentially at 3 records/second rate
+            batch = df_csv.iloc[curr_idx : curr_idx + 3]
+            for offset, (_, row) in enumerate(batch.iterrows()):
+                payload = parse_csv_row_to_payload(row)
+                item = score_csv_tx(payload, curr_idx + offset)
+                st.session_state.stream_history.append(item)
+            st.session_state.stream_history = st.session_state.stream_history[-100:]
+            st.session_state.csv_stream_idx += len(batch)
+
+            time.sleep(1.0)  # 1.0s delay for 3 records batch = exactly 3 records/sec
+            st.rerun()
+        else:
+            st.session_state.csv_is_streaming = False
+            st.success(f"🎉 CSV Real-time Streaming Complete! Successfully processed all {len(df_csv)} records at 3 records/sec.")
+            st.rerun()
+
+    elif auto_stream:
         delay = float(np.random.randint(1, 6))
         count = int(np.random.randint(1, 4))
         for _ in range(count):
