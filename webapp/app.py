@@ -67,29 +67,35 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# API Base URL - Read from environment variable (for Docker/env) or default to Ngrok endpoint
+# API Base URL - Read strictly from environment variable or default to Ngrok endpoint
 API_URL = os.getenv("API_URL", "https://f65e-20-212-171-173.ngrok-free.app")
-CANDIDATE_URLS = [API_URL, "https://f65e-20-212-171-173.ngrok-free.app", "http://api:8000", "http://127.0.0.1:8000", "http://localhost:8000"]
 
 
 def fetch_api(endpoint: str, method: str = "GET", payload: dict = None):
-    urls_to_try = list(dict.fromkeys([API_URL] + CANDIDATE_URLS))
+    url = f"{API_URL.rstrip('/')}{endpoint}"
     headers = {
         "ngrok-skip-browser-warning": "true",
         "User-Agent": "FraudDetectionApp"
     }
-    for base_url in urls_to_try:
-        url = f"{base_url.rstrip('/')}{endpoint}"
-        try:
-            if method == "POST":
-                res = requests.post(url, json=payload, headers=headers, timeout=5)
-            else:
-                res = requests.get(url, headers=headers, timeout=5)
-            if res.status_code == 200:
-                return res.json()
-        except Exception:
-            continue
+    t_str = time.strftime("%H:%M:%S")
+    try:
+        print(f"[{t_str}] 🚀 [FE OUTBOUND API] {method} {url}", flush=True)
+        if method == "POST":
+            res = requests.post(url, json=payload, headers=headers, timeout=5)
+        else:
+            res = requests.get(url, headers=headers, timeout=5)
+
+        if res.status_code == 200:
+            data = res.json()
+            print(f"[{t_str}] ✅ [BE API SUCCESS 200] {method} {url} -> {data}", flush=True)
+            return data
+        else:
+            print(f"[{t_str}] ⚠️ [BE API WARN {res.status_code}] {method} {url}", flush=True)
+    except Exception as ex:
+        print(f"[{t_str}] ❌ [BE API ERROR] {method} {url} failed: {ex}", flush=True)
     return None
+
+
 
 
 
@@ -97,9 +103,9 @@ def fetch_api(endpoint: str, method: str = "GET", payload: dict = None):
 st.sidebar.markdown("## 🛡️ Fraud Detection System")
 health = fetch_api("/health")
 if health and health.get("status") == "ok":
-    st.sidebar.success(f"FastAPI Backend: CONNECTED (Model: {'Loaded' if health.get('model_loaded') else 'Fallback'})")
+    st.sidebar.success(f"FastAPI Backend: CONNECTED")
 else:
-    st.sidebar.info("FastAPI Backend: Standalone Mode")
+    st.sidebar.error(f"❌ FastAPI Backend: DISCONNECTED (`{API_URL}`)")
 
 st.sidebar.markdown("---")
 page = st.sidebar.radio(
@@ -114,29 +120,14 @@ page = st.sidebar.radio(
 )
 
 
-
-
 def score_all_models(raw_payload: dict) -> dict:
-    """Evaluates raw transaction input across API backend or local classifier fallback."""
+    """Evaluates raw transaction input strictly via Backend API endpoint."""
     res = fetch_api("/predict", method="POST", payload=raw_payload)
-    if res and "fraud_probability" in res:
-        rf_score = float(res["fraud_probability"]) * 100
-    else:
-        try:
-            from app import features, config
-            import joblib
-            X_f = features.extract_features_single(raw_payload)
-            model_path = config.BASE_DIR / "model" / "model.joblib"
-            rf_model = joblib.load(model_path) if model_path.exists() else None
+    if not res or "fraud_probability" not in res:
+        st.error(f"❌ Cannot connect to Backend API (`{API_URL}`). Prediction aborted.")
+        return None
 
-            if rf_model:
-                rf_score = float(rf_model.predict_proba(X_f)[0, 1]) * 100
-            else:
-                is_f = raw_payload["type"] in ["TRANSFER", "CASH_OUT"] and np.isclose(raw_payload["amount"], raw_payload["oldbalanceOrg"], atol=1.0)
-                rf_score = 98.5 if is_f else 1.2
-        except Exception:
-            is_f = raw_payload["type"] in ["TRANSFER", "CASH_OUT"] and raw_payload["amount"] == raw_payload["oldbalanceOrg"]
-            rf_score = 98.5 if is_f else 1.2
+    rf_score = float(res["fraud_probability"]) * 100
 
     # Compute characteristic probability curves for LightGBM, XGBoost, and Logistic Regression
     if rf_score >= 50:
@@ -156,7 +147,6 @@ def score_all_models(raw_payload: dict) -> dict:
     }
 
 
-
 def score_random_tx():
     is_f = np.random.choice([True, False], p=[0.35, 0.65])
     amt = float(np.random.choice([181000.0, 350000.0, 500.0, 12000.0, 500000.0, 75.0, 25000.0]))
@@ -174,6 +164,9 @@ def score_random_tx():
     }
 
     scores = score_all_models(raw_payload)
+    if not scores:
+        return None
+
     is_pred = 1 if scores["rf"] >= 5.0 else 0
 
     return {
@@ -256,10 +249,10 @@ def parse_csv_row_to_payload(row: pd.Series) -> dict:
 
 def score_csv_tx(raw_payload: dict, row_idx: int):
     scores = score_all_models(raw_payload)
-    is_pred = 1 if scores["rf"] >= 5.0 else 0
+    if not scores:
+        return None
 
-    # Sync to backend API if connected
-    fetch_api("/predict", method="POST", payload=raw_payload)
+    is_pred = 1 if scores["rf"] >= 5.0 else 0
 
     return {
         "Time": time.strftime("%H:%M:%S"),
@@ -575,14 +568,22 @@ elif page == "⚡ 4. Real-time Streaming":
     # Handle manual push buttons
     if push_single:
         item = score_random_tx()
-        st.session_state.stream_history.append(item)
-        st.session_state.stream_history = st.session_state.stream_history[-50:]
+        if item is not None:
+            st.session_state.stream_history.append(item)
+            st.session_state.stream_history = [x for x in st.session_state.stream_history if isinstance(x, dict)][-50:]
+        else:
+            st.warning(f"⚠️ Unable to push transaction: Backend API at `{API_URL}` is unreachable.")
 
     if push_batch:
+        success_count = 0
         for _ in range(10):
             item = score_random_tx()
-            st.session_state.stream_history.append(item)
-        st.session_state.stream_history = st.session_state.stream_history[-50:]
+            if item is not None:
+                st.session_state.stream_history.append(item)
+                success_count += 1
+        st.session_state.stream_history = [x for x in st.session_state.stream_history if isinstance(x, dict)][-50:]
+        if success_count == 0:
+            st.warning(f"⚠️ Unable to push batch: Backend API at `{API_URL}` is unreachable.")
 
     st.markdown("---")
 
@@ -596,8 +597,9 @@ elif page == "⚡ 4. Real-time Streaming":
     elif auto_stream:
         st.info("🟢 **RANDOM AUTO-STREAM RUNNING**: Scoring incoming transactions across all 4 classifiers...")
 
-    if st.session_state.stream_history:
-        df_stream = pd.DataFrame(st.session_state.stream_history)
+    valid_history = [x for x in st.session_state.stream_history if isinstance(x, dict)]
+    if valid_history:
+        df_stream = pd.DataFrame(valid_history)
 
         c_chart1, c_chart2 = st.columns([2, 1])
 
@@ -610,7 +612,7 @@ elif page == "⚡ 4. Real-time Streaming":
         with c_chart2:
             st.markdown("#### Live Stream Statistics")
             total_pushed = len(df_stream)
-            fraud_pushed = sum(1 for x in st.session_state.stream_history if "FRAUD" in x["Status"])
+            fraud_pushed = sum(1 for x in valid_history if "FRAUD" in x.get("Status", ""))
             avg_rf = df_stream["Random Forest (%)"].mean()
             avg_lr = df_stream["Logistic Regression (%)"].mean()
 
@@ -633,14 +635,25 @@ elif page == "⚡ 4. Real-time Streaming":
         if curr_idx < len(df_csv):
             # Take next 3 records to stream sequentially at 3 records/second rate
             batch = df_csv.iloc[curr_idx : curr_idx + 3]
+            api_failed = False
             for offset, (_, row) in enumerate(batch.iterrows()):
                 payload = parse_csv_row_to_payload(row)
                 item = score_csv_tx(payload, curr_idx + offset)
-                st.session_state.stream_history.append(item)
-            st.session_state.stream_history = st.session_state.stream_history[-100:]
-            st.session_state.csv_stream_idx += len(batch)
+                if item is not None:
+                    st.session_state.stream_history.append(item)
+                else:
+                    api_failed = True
+                    break
 
-            time.sleep(1.0)  # 1.0s delay for 3 records batch = exactly 3 records/sec
+            st.session_state.stream_history = [x for x in st.session_state.stream_history if isinstance(x, dict)][-100:]
+
+            if api_failed:
+                st.session_state.csv_is_streaming = False
+                st.error(f"❌ Backend API connection failed (`{API_URL}`). CSV streaming paused.")
+                st.rerun()
+
+            st.session_state.csv_stream_idx += len(batch)
+            time.sleep(1.0)
             st.rerun()
         else:
             st.session_state.csv_is_streaming = False
@@ -650,9 +663,20 @@ elif page == "⚡ 4. Real-time Streaming":
     elif auto_stream:
         delay = float(np.random.randint(1, 6))
         count = int(np.random.randint(1, 4))
+        api_failed = False
         for _ in range(count):
             item = score_random_tx()
-            st.session_state.stream_history.append(item)
-        st.session_state.stream_history = st.session_state.stream_history[-50:]
-        time.sleep(delay)
-        st.rerun()
+            if item is not None:
+                st.session_state.stream_history.append(item)
+            else:
+                api_failed = True
+                break
+
+        st.session_state.stream_history = [x for x in st.session_state.stream_history if isinstance(x, dict)][-50:]
+
+        if api_failed:
+            st.error(f"❌ Backend API connection failed (`{API_URL}`). Auto-stream paused.")
+        else:
+            time.sleep(delay)
+            st.rerun()
+
